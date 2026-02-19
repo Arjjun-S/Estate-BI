@@ -4,14 +4,20 @@
 CREATE DATABASE IF NOT EXISTS estatebi;
 USE estatebi;
 
+-- Disable foreign key checks for clean drop
+SET FOREIGN_KEY_CHECKS = 0;
+
 -- Drop tables if exist (for clean rebuild)
+DROP TABLE IF EXISTS upload_history;
+DROP TABLE IF EXISTS logs;
 DROP TABLE IF EXISTS daily_metrics;
 DROP TABLE IF EXISTS transactions;
 DROP TABLE IF EXISTS properties;
 DROP TABLE IF EXISTS regions;
 DROP TABLE IF EXISTS users;
-DROP TABLE IF EXISTS logs;
-DROP TABLE IF EXISTS upload_history;
+
+-- Re-enable foreign key checks
+SET FOREIGN_KEY_CHECKS = 1;
 
 -- 1. Users Table (Authentication)
 CREATE TABLE users (
