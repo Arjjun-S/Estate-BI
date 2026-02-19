@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import LineChart from '../components/LineChart';
 import BarChart from '../components/BarChart';
-import { getDashboardMetrics, getPriceTrends, getRegionalDistribution, getRecentTransactions } from '../services/api';
-import { Package, TrendingUp, Home, Clock, Upload, ArrowUpRight, ArrowDownRight } from 'lucide-react';
+import { getCities, getDashboardMetrics, getPriceTrends, getRegionalDistribution, getRecentTransactions } from '../services/api';
+import { Package, TrendingUp, Home, Clock, Upload, ArrowUpRight, ArrowDownRight, Loader2, MapPin, ChevronDown } from 'lucide-react';
 
 const DashboardPage = () => {
     const [metrics, setMetrics] = useState({
@@ -15,39 +15,116 @@ const DashboardPage = () => {
     const [regionData, setRegionData] = useState([]);
     const [transactions, setTransactions] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
+    const [cities, setCities] = useState([]);
+    const [selectedCity, setSelectedCity] = useState('all');
 
+    // Fetch cities on mount
+    useEffect(() => {
+        const fetchCities = async () => {
+            try {
+                const response = await getCities();
+                if (response?.data) {
+                    setCities(response.data);
+                }
+            } catch (err) {
+                console.error('Failed to fetch cities:', err);
+            }
+        };
+        fetchCities();
+    }, []);
+
+    // Fetch dashboard data when city changes
     useEffect(() => {
         const fetchData = async () => {
+            setLoading(true);
+            setError(null);
+            
+            console.log("📊 Fetching dashboard data for city:", selectedCity);
+            
             try {
-                const [m, p, r, t] = await Promise.all([
-                    getDashboardMetrics(),
-                    getPriceTrends(),
-                    getRegionalDistribution(),
-                    getRecentTransactions()
+                // Fetch each endpoint separately to handle individual failures
+                const [metricsRes, priceRes, regionRes, transRes] = await Promise.allSettled([
+                    getDashboardMetrics(selectedCity),
+                    getPriceTrends(selectedCity),
+                    getRegionalDistribution(selectedCity),
+                    getRecentTransactions(selectedCity)
                 ]);
-                setMetrics(m.data);
-                setPriceData(p.data);
-                setRegionData(r.data);
-                setTransactions(t.data);
-            } catch (error) {
-                console.error("Failed to fetch dashboard data", error);
+                
+                // Handle metrics
+                if (metricsRes.status === 'fulfilled' && metricsRes.value?.data) {
+                    setMetrics(metricsRes.value.data);
+                }
+                
+                // Handle price data
+                if (priceRes.status === 'fulfilled' && priceRes.value?.data) {
+                    setPriceData(Array.isArray(priceRes.value.data) ? priceRes.value.data : []);
+                }
+                
+                // Handle region data
+                if (regionRes.status === 'fulfilled' && regionRes.value?.data) {
+                    setRegionData(Array.isArray(regionRes.value.data) ? regionRes.value.data : []);
+                }
+                
+                // Handle transactions
+                if (transRes.status === 'fulfilled' && transRes.value?.data) {
+                    setTransactions(Array.isArray(transRes.value.data) ? transRes.value.data : []);
+                }
+                
+            } catch (err) {
+                console.error("Failed to fetch dashboard data", err);
+                setError("Failed to load dashboard data");
             } finally {
                 setLoading(false);
             }
         };
+        
         fetchData();
-    }, []);
+    }, [selectedCity]);
 
-    if (loading) return <div className="p-8">Loading dashboard...</div>;
+    if (loading) {
+        return (
+            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '400px' }}>
+                <Loader2 size={32} className="animate-spin" style={{ color: 'var(--primary)' }} />
+            </div>
+        );
+    }
 
     return (
         <div className="dashboard-page">
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem', flexWrap: 'wrap', gap: '1rem' }}>
                 <div>
                     <h1 style={{ fontSize: '1.5rem', marginBottom: '0.5rem' }}>System Dashboard</h1>
                     <p style={{ color: 'var(--text-secondary)' }}>Real-time business intelligence for Housing Data Warehouse V3.0</p>
                 </div>
-                <div style={{ display: 'flex', gap: '1rem' }}>
+                <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                    {/* City Filter */}
+                    <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                        <MapPin size={16} style={{ position: 'absolute', left: '12px', color: 'var(--text-secondary)', pointerEvents: 'none' }} />
+                        <select
+                            value={selectedCity}
+                            onChange={(e) => setSelectedCity(e.target.value)}
+                            style={{
+                                padding: '0.5rem 2.5rem 0.5rem 2.5rem',
+                                borderRadius: '8px',
+                                border: '1px solid var(--border)',
+                                background: 'var(--card-bg)',
+                                color: 'var(--text-main)',
+                                fontSize: '0.875rem',
+                                cursor: 'pointer',
+                                minWidth: '180px',
+                                appearance: 'none'
+                            }}
+                        >
+                            <option value="all">All Cities ({cities.reduce((sum, c) => sum + c.property_count, 0).toLocaleString()})</option>
+                            {cities.slice(0, 20).map(city => (
+                                <option key={city.city} value={city.city}>
+                                    {city.city} ({city.property_count.toLocaleString()})
+                                </option>
+                            ))}
+                        </select>
+                        <ChevronDown size={16} style={{ position: 'absolute', right: '12px', color: 'var(--text-secondary)', pointerEvents: 'none' }} />
+                    </div>
                     <button className="btn btn-outline"><Upload size={16} /> Export CSV</button>
                     <button className="btn btn-primary"><Upload size={16} /> New Import</button>
                 </div>
@@ -64,7 +141,7 @@ const DashboardPage = () => {
                 />
                 <MetricCard
                     title="Avg Market Price"
-                    value={`$${metrics.avg_price.toLocaleString()}`}
+                    value={`₹${(metrics.avg_price / 100000).toFixed(1)}L`}
                     icon={<TrendingUp size={24} color="#f59e0b" />}
                     trend="-0.8%"
                     trendColor="red"
@@ -145,7 +222,7 @@ const DashboardPage = () => {
                                             {t.status}
                                         </span>
                                     </td>
-                                    <td style={{ fontWeight: 600 }}>${t.value.toLocaleString()}</td>
+                                    <td style={{ fontWeight: 600 }}>₹{Number(t.value).toLocaleString()}</td>
                                     <td style={{ color: 'var(--text-secondary)' }}>{t.date}</td>
                                     <td style={{ color: 'var(--text-secondary)' }}>{t.action}</td>
                                 </tr>

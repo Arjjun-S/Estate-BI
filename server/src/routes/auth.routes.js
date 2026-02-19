@@ -122,4 +122,111 @@ router.get('/me', async (req, res) => {
     }
 });
 
+// GET /api/auth/profile - Get current user profile
+router.get('/profile', async (req, res) => {
+    try {
+        const authHeader = req.headers.authorization;
+        if (!authHeader) {
+            return res.status(401).json({ error: 'No token provided' });
+        }
+        
+        const jwt = require('jsonwebtoken');
+        const token = authHeader.split(' ')[1];
+        
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        
+        const users = await query('SELECT id, name, email, role, created_at FROM users WHERE id = ?', [decoded.id]);
+        
+        if (users.length === 0) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+        
+        res.json(users[0]);
+    } catch (error) {
+        console.error('Get profile error:', error);
+        res.status(500).json({ error: 'Failed to get profile' });
+    }
+});
+
+// PUT /api/auth/profile - Update user profile
+router.put('/profile', async (req, res) => {
+    try {
+        const authHeader = req.headers.authorization;
+        if (!authHeader) {
+            return res.status(401).json({ error: 'No token provided' });
+        }
+        
+        const jwt = require('jsonwebtoken');
+        const token = authHeader.split(' ')[1];
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        
+        const { name, email } = req.body;
+        
+        if (!name || !email) {
+            return res.status(400).json({ error: 'Name and email are required' });
+        }
+        
+        // Check if email is taken by another user
+        const existingUsers = await query('SELECT id FROM users WHERE email = ? AND id != ?', [email, decoded.id]);
+        if (existingUsers.length > 0) {
+            return res.status(400).json({ error: 'Email already in use' });
+        }
+        
+        await query('UPDATE users SET name = ?, email = ? WHERE id = ?', [name, email, decoded.id]);
+        
+        const users = await query('SELECT id, name, email, role, created_at FROM users WHERE id = ?', [decoded.id]);
+        
+        res.json({ message: 'Profile updated', user: users[0] });
+    } catch (error) {
+        console.error('Update profile error:', error);
+        res.status(500).json({ error: 'Failed to update profile' });
+    }
+});
+
+// PUT /api/auth/change-password - Change user password
+router.put('/change-password', async (req, res) => {
+    try {
+        const authHeader = req.headers.authorization;
+        if (!authHeader) {
+            return res.status(401).json({ error: 'No token provided' });
+        }
+        
+        const jwt = require('jsonwebtoken');
+        const token = authHeader.split(' ')[1];
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        
+        const { currentPassword, newPassword } = req.body;
+        
+        if (!currentPassword || !newPassword) {
+            return res.status(400).json({ error: 'Current and new passwords are required' });
+        }
+        
+        if (newPassword.length < 6) {
+            return res.status(400).json({ error: 'Password must be at least 6 characters' });
+        }
+        
+        // Verify current password
+        const users = await query('SELECT * FROM users WHERE id = ?', [decoded.id]);
+        if (users.length === 0) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+        
+        const isMatch = await bcrypt.compare(currentPassword, users[0].password_hash);
+        if (!isMatch) {
+            return res.status(401).json({ error: 'Current password is incorrect' });
+        }
+        
+        // Hash and update new password
+        const saltRounds = 10;
+        const newPasswordHash = await bcrypt.hash(newPassword, saltRounds);
+        
+        await query('UPDATE users SET password_hash = ? WHERE id = ?', [newPasswordHash, decoded.id]);
+        
+        res.json({ message: 'Password changed successfully' });
+    } catch (error) {
+        console.error('Change password error:', error);
+        res.status(500).json({ error: 'Failed to change password' });
+    }
+});
+
 module.exports = router;

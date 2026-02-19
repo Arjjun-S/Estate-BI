@@ -7,7 +7,9 @@ const router = express.Router();
 // GET /api/logs/ - Get system logs
 router.get('/', async (req, res) => {
     try {
-        const { limit = 50, offset = 0, event, user_id } = req.query;
+        const limit = parseInt(req.query.limit) || 50;
+        const offset = parseInt(req.query.offset) || 0;
+        const { event, user_id } = req.query;
         
         let sql = `
             SELECT 
@@ -31,24 +33,23 @@ router.get('/', async (req, res) => {
         
         if (user_id) {
             conditions.push('l.user_id = ?');
-            params.push(user_id);
+            params.push(parseInt(user_id));
         }
         
         if (conditions.length > 0) {
             sql += ' WHERE ' + conditions.join(' AND ');
         }
         
-        sql += ' ORDER BY l.created_at DESC LIMIT ? OFFSET ?';
-        params.push(parseInt(limit), parseInt(offset));
+        sql += ` ORDER BY l.created_at DESC LIMIT ${limit} OFFSET ${offset}`;
         
         const logs = await query(sql, params);
         
         // If no logs, return sample data
         if (logs.length === 0) {
             return res.json([
-                { id: 1, time: '2024-04-15 10:30:00', user: 'Admin User', event: 'User Login', details: 'Logged in from Chrome' },
-                { id: 2, time: '2024-04-15 09:15:00', user: 'System', event: 'Data Import', details: 'Imported 27 properties' },
-                { id: 3, time: '2024-04-14 16:45:00', user: 'Admin User', event: 'Settings Update', details: 'Updated notification preferences' }
+                { id: 1, time: '2026-02-19 10:30:00', user: 'Admin User', event: 'User Login', details: 'Logged in from Chrome' },
+                { id: 2, time: '2026-02-19 09:15:00', user: 'System', event: 'Data Import', details: 'Imported 27 properties' },
+                { id: 3, time: '2026-02-18 16:45:00', user: 'Admin User', event: 'Settings Update', details: 'Updated notification preferences' }
             ]);
         }
         

@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, UploadCloud, BarChart3, ScrollText, Settings, LogOut } from 'lucide-react';
+import { LayoutDashboard, UploadCloud, BarChart3, ScrollText, LogOut } from 'lucide-react';
 import { logout } from '../services/api';
 import '../index.css';
 
@@ -33,9 +33,6 @@ const Sidebar = () => {
                 </NavLink>
                 <NavLink to="/logs" className={({ isActive }) => `btn btn-outline ${isActive ? 'active-nav' : ''}`} style={{ border: 'none', justifyContent: 'flex-start', background: 'transparent' }}>
                     <ScrollText size={20} /> System Logs
-                </NavLink>
-                <NavLink to="/settings" className={({ isActive }) => `btn btn-outline ${isActive ? 'active-nav' : ''}`} style={{ border: 'none', justifyContent: 'flex-start', background: 'transparent' }}>
-                    <Settings size={20} /> Settings
                 </NavLink>
             </nav>
 

@@ -54,3 +54,7 @@ venv/
 tmp/
 temp/
 .cache/
+
+# Large data files (imported to database)
+*.csv
+data_template.txt

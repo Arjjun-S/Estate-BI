@@ -40,10 +40,11 @@ export const signup = (data) => api.post('/auth/signup', data);
 export const getMe = () => api.get('/auth/me');
 
 // Dashboard endpoints
-export const getDashboardMetrics = () => api.get('/dashboard/metrics');
-export const getPriceTrends = () => api.get('/dashboard/price-trends');
-export const getRegionalDistribution = () => api.get('/dashboard/regional-distribution');
-export const getRecentTransactions = () => api.get('/dashboard/recent-transactions');
+export const getCities = () => api.get('/dashboard/cities');
+export const getDashboardMetrics = (city) => api.get('/dashboard/metrics', { params: { city } });
+export const getPriceTrends = (city) => api.get('/dashboard/price-trends', { params: { city } });
+export const getRegionalDistribution = (city) => api.get('/dashboard/regional-distribution', { params: { city } });
+export const getRecentTransactions = (city) => api.get('/dashboard/recent-transactions', { params: { city } });
 export const getCityStats = () => api.get('/dashboard/city-stats');
 export const getDashboardSummary = () => api.get('/dashboard/summary');
 

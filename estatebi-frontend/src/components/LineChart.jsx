@@ -14,12 +14,12 @@ const LineChart = ({ data }) => {
                             </linearGradient>
                         </defs>
                         <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 12 }} />
-                        <YAxis axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 12 }} tickFormatter={(value) => `$${value / 1000}k`} />
+                        <YAxis axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 12 }} tickFormatter={(value) => `₹${(value / 1000000).toFixed(0)}M`} />
                         <CartesianGrid vertical={false} stroke="#e2e8f0" strokeDasharray="3 3" />
                         <Tooltip
                             contentStyle={{ background: '#fff', border: 'none', borderRadius: '8px', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
                             itemStyle={{ color: '#1e293b' }}
-                            formatter={(value) => [`$${value.toLocaleString()}`, 'Avg Price']}
+                            formatter={(value) => [`₹${Number(value).toLocaleString()}`, 'Avg Price']}
                         />
                         <Area type="monotone" dataKey="avg_price" stroke="#f59e0b" strokeWidth={3} fillOpacity={1} fill="url(#colorValue)" />
                     </RAreaChart>

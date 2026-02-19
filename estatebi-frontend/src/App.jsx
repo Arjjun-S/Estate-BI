@@ -6,7 +6,6 @@ import DashboardPage from './pages/DashboardPage';
 import UploadPage from './pages/UploadPage';
 import ReportsPage from './pages/ReportsPage';
 import LogsPage from './pages/LogsPage';
-import SettingsPage from './pages/SettingsPage';
 import LoginPage from './pages/LoginPage';
 import { isAuthenticated } from './services/api';
 import './index.css';
@@ -49,7 +48,6 @@ const App = () => {
           <Route path="/upload" element={<ProtectedRoute><UploadPage /></ProtectedRoute>} />
           <Route path="/reports" element={<ProtectedRoute><ReportsPage /></ProtectedRoute>} />
           <Route path="/logs" element={<ProtectedRoute><LogsPage /></ProtectedRoute>} />
-          <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
         </Routes>
       </Layout>
     </BrowserRouter>
