@@ -1,0 +1,46 @@
+==========================================
+          EstateBI ER Diagram
+==========================================
+
+ENTITIES
+------------------------------------------
+
+users -> id, name, email, password_hash, role, created_at, updated_at
+
+regions -> id, name, city, state, pincode, created_at
+
+properties -> id, property_code, address, city, region_id, type, status, price, sqft, bedrooms, bathrooms, year_built, description, created_at, updated_at
+
+transactions -> id, property_id, amount, transaction_date, status, buyer_name, buyer_email, notes, created_at
+
+daily_metrics -> id, date, city, total_inventory, avg_price, total_sales, total_revenue, created_at
+
+logs -> id, user_id, event, details, ip_address, created_at
+
+upload_history -> id, user_id, filename, file_type, records_processed, records_failed, status, error_message, created_at
+
+
+RELATIONS
+------------------------------------------
+
+regions -> properties = has_properties
+
+properties -> transactions = has_transactions
+
+users -> logs = creates_logs
+
+users -> upload_history = uploads_files
+
+
+CARDINALITY
+------------------------------------------
+
+regions -> properties = 1:M
+
+properties -> transactions = 1:M
+
+users -> logs = 1:M
+
+users -> upload_history = 1:M
+
+==========================================
