@@ -71,6 +71,15 @@ router.get('/metrics', async (req, res) => {
 // GET /api/dashboard/price-trends - Monthly price trends
 router.get('/price-trends', async (req, res) => {
     try {
+        const { city } = req.query;
+        let cityJoin = '';
+        let cityFilter = '';
+        
+        if (city && city !== 'all') {
+            cityJoin = 'JOIN properties p ON t.property_id = p.id';
+            cityFilter = `AND p.city = '${city}'`;
+        }
+        
         // Generate price trends from transaction data
         const trends = await query(`
             SELECT 
@@ -78,7 +87,8 @@ router.get('/price-trends', async (req, res) => {
                 DATE_FORMAT(t.transaction_date, '%Y-%m') as sort_key,
                 ROUND(AVG(t.amount)) as avg_price
             FROM transactions t
-            WHERE t.status != 'Cancelled'
+            ${cityJoin}
+            WHERE t.status != 'Cancelled' ${cityFilter}
             GROUP BY DATE_FORMAT(t.transaction_date, '%Y-%m'), DATE_FORMAT(t.transaction_date, '%b')
             ORDER BY sort_key ASC
             LIMIT 12
@@ -86,16 +96,21 @@ router.get('/price-trends', async (req, res) => {
         
         // If no transaction data, generate from properties
         if (!trends || trends.length === 0) {
+            const propCityFilter = city && city !== 'all' ? `WHERE city = '${city}'` : '';
+            const propData = await query(`
+                SELECT ROUND(AVG(price)) as base_price FROM properties ${propCityFilter}
+            `);
+            
+            const basePrice = propData[0]?.base_price || 10000000;
             const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
             const mockTrends = [];
-            const basePrice = 10000000;
             
             for (let i = 5; i >= 0; i--) {
                 const date = new Date();
                 date.setMonth(date.getMonth() - i);
                 mockTrends.push({
                     month: monthNames[date.getMonth()],
-                    avg_price: Math.round(basePrice + (Math.random() * 5000000))
+                    avg_price: Math.round(basePrice * (0.9 + Math.random() * 0.2))
                 });
             }
             return res.json(mockTrends);
@@ -127,23 +142,44 @@ router.get('/price-trends', async (req, res) => {
 router.get('/regional-distribution', async (req, res) => {
     try {
         const { city } = req.query;
-        const cityFilter = city && city !== 'all' ? `WHERE p.city = '${city}'` : '';
+        let whereClause = "WHERE r.name NOT LIKE 'Locality_%' AND r.name NOT REGEXP '^[0-9]'";
+        
+        if (city && city !== 'all') {
+            whereClause += ` AND p.city = '${city}'`;
+        }
         
         const distribution = await query(`
             SELECT 
                 r.name as region,
+                r.city,
                 COUNT(p.id) as count
             FROM regions r
             LEFT JOIN properties p ON r.id = p.region_id
-            ${cityFilter}
-            GROUP BY r.id, r.name
+            ${whereClause}
+            GROUP BY r.id, r.name, r.city
             HAVING count > 0
             ORDER BY count DESC
             LIMIT 10
         `);
         
-        // If no data, return sample data
+        // If no data, return sample data based on city
         if (distribution.length === 0) {
+            if (city === 'Chennai' || city === 'all' || !city) {
+                return res.json([
+                    { region: 'T. Nagar', count: 5 },
+                    { region: 'Adyar', count: 4 },
+                    { region: 'Anna Nagar', count: 3 },
+                    { region: 'Velachery', count: 3 },
+                    { region: 'OMR', count: 2 }
+                ]);
+            } else if (city === 'Salem') {
+                return res.json([
+                    { region: 'Hasthampatti', count: 4 },
+                    { region: 'Ammapet', count: 3 },
+                    { region: 'Gorimedu', count: 2 },
+                    { region: 'Attur', count: 2 }
+                ]);
+            }
             return res.json([
                 { region: 'T. Nagar', count: 5 },
                 { region: 'Adyar', count: 4 },

@@ -1,0 +1,246 @@
+# EstateBI Database Structure Documentation
+# Last Updated: March 4, 2026
+
+================================================================================
+DATABASE: estatebi
+================================================================================
+
+This document describes the database structure used by the EstateBI Housing 
+Business Intelligence application. The database uses MySQL and stores housing 
+data, user information, and system logs.
+
+================================================================================
+TABLE: users
+================================================================================
+Description: Stores user account information for authentication and authorization
+
+| Column          | Type                    | Null | Key | Default           | Notes                    |
+|-----------------|-------------------------|------|-----|-------------------|--------------------------|
+| id              | int                     | NO   | PRI | AUTO_INCREMENT    | Primary key              |
+| name            | varchar(100)            | NO   |     |                   | User's full name         |
+| email           | varchar(150)            | NO   | UNI |                   | Unique email for login   |
+| password_hash   | varchar(255)            | NO   |     |                   | Bcrypt hashed password   |
+| role            | enum('admin','analyst') | YES  |     | 'analyst'         | User role/permissions    |
+| profile_picture | varchar(255)            | YES  |     | NULL              | URL to profile image     |
+| created_at      | timestamp               | YES  |     | CURRENT_TIMESTAMP |                          |
+| updated_at      | timestamp               | YES  |     | CURRENT_TIMESTAMP | Auto-updates on change   |
+
+Relationships:
+- Referenced by: logs (user_id), upload_history (user_id)
+
+================================================================================
+TABLE: regions
+================================================================================
+Description: Stores geographic regions/localities for properties
+
+| Column     | Type         | Null | Key | Default           | Notes               |
+|------------|--------------|------|-----|-------------------|---------------------|
+| id         | int          | NO   | PRI | AUTO_INCREMENT    | Primary key         |
+| name       | varchar(100) | NO   |     |                   | Region/locality name|
+| city       | varchar(100) | NO   |     |                   | City name           |
+| state      | varchar(100) | YES  |     | 'Tamil Nadu'      | State name          |
+| pincode    | varchar(10)  | YES  |     |                   | Postal code         |
+| created_at | timestamp    | YES  |     | CURRENT_TIMESTAMP |                     |
+
+Unique Key: (name, city) - Ensures no duplicate region in same city
+
+Example regions:
+- Kattankolathur, Chennai
+- Tambaram, Chennai
+- Velachery, Chennai
+- Hasthampatti, Salem
+- Ammapet, Salem
+
+================================================================================
+TABLE: properties
+================================================================================
+Description: Main table storing property/real estate listings
+
+| Column        | Type                                | Null | Key | Default           | Notes                 |
+|---------------|-------------------------------------|------|-----|-------------------|-----------------------|
+| id            | int                                 | NO   | PRI | AUTO_INCREMENT    | Primary key           |
+| property_code | varchar(20)                         | YES  | UNI |                   | Unique property ID    |
+| address       | varchar(255)                        | YES  |     |                   | Street address        |
+| city          | varchar(100)                        | NO   |     |                   | City location         |
+| region_id     | int                                 | YES  | MUL |                   | FK to regions table   |
+| type          | enum('Residential','Commercial','Land') | YES | | 'Residential'    | Property type         |
+| status        | enum('Active','Sold','Pending')     | YES  |     | 'Active'          | Listing status        |
+| price         | decimal(15,2)                       | NO   |     |                   | Property price (INR)  |
+| sqft          | int                                 | YES  |     |                   | Square footage        |
+| bedrooms      | int                                 | YES  |     | 0                 | Number of bedrooms    |
+| bathrooms     | decimal(3,1)                        | YES  |     | 0                 | Number of bathrooms   |
+| year_built    | int                                 | YES  |     |                   | Year constructed      |
+| description   | text                                | YES  |     |                   | Property description  |
+| created_at    | timestamp                           | YES  |     | CURRENT_TIMESTAMP |                       |
+| updated_at    | timestamp                           | YES  |     | CURRENT_TIMESTAMP | Auto-updates          |
+
+Indexes:
+- idx_properties_city: For city-based filtering
+- idx_properties_status: For status filtering
+- idx_properties_type: For property type filtering
+
+Relationships:
+- FK region_id -> regions(id) ON DELETE SET NULL
+- Referenced by: transactions (property_id)
+
+================================================================================
+TABLE: transactions
+================================================================================
+Description: Records property sales/purchase transactions
+
+| Column           | Type                                  | Null | Key | Default           | Notes               |
+|------------------|---------------------------------------|------|-----|-------------------|---------------------|
+| id               | int                                   | NO   | PRI | AUTO_INCREMENT    | Primary key         |
+| property_id      | int                                   | NO   | MUL |                   | FK to properties    |
+| amount           | decimal(15,2)                         | NO   |     |                   | Transaction amount  |
+| transaction_date | date                                  | NO   |     |                   | Date of transaction |
+| status           | enum('Completed','Pending','Cancelled')| YES |     | 'Pending'         | Transaction status  |
+| buyer_name       | varchar(100)                          | YES  |     |                   | Buyer's name        |
+| buyer_email      | varchar(150)                          | YES  |     |                   | Buyer's email       |
+| notes            | text                                  | YES  |     |                   | Additional notes    |
+| created_at       | timestamp                             | YES  |     | CURRENT_TIMESTAMP |                     |
+
+Indexes:
+- idx_transactions_date: For date-range queries
+- idx_transactions_status: For status filtering
+
+Relationships:
+- FK property_id -> properties(id) ON DELETE CASCADE
+
+================================================================================
+TABLE: daily_metrics
+================================================================================
+Description: Aggregated daily metrics for dashboard analytics
+
+| Column        | Type          | Null | Key | Default           | Notes                |
+|---------------|---------------|------|-----|-------------------|----------------------|
+| id            | int           | NO   | PRI | AUTO_INCREMENT    | Primary key          |
+| date          | date          | NO   |     |                   | Metric date          |
+| city          | varchar(100)  | YES  |     |                   | City (null for all)  |
+| total_inventory| int          | YES  |     | 0                 | Active listings      |
+| avg_price     | decimal(15,2) | YES  |     | 0                 | Average price        |
+| total_sales   | int           | YES  |     | 0                 | Number of sales      |
+| total_revenue | decimal(18,2) | YES  |     | 0                 | Total revenue        |
+| created_at    | timestamp     | YES  |     | CURRENT_TIMESTAMP |                      |
+
+Unique Key: (date, city) - One record per city per day
+
+Index:
+- idx_daily_metrics_date: For date-range queries
+
+================================================================================
+TABLE: logs (System Logs)
+================================================================================
+Description: Stores all system activity logs for audit trail
+
+| Column     | Type         | Null | Key | Default           | Notes                |
+|------------|--------------|------|-----|-------------------|----------------------|
+| id         | int          | NO   | PRI | AUTO_INCREMENT    | Primary key          |
+| user_id    | int          | YES  | MUL |                   | FK to users (or NULL)|
+| event      | varchar(100) | NO   |     |                   | Event type/name      |
+| details    | text         | YES  |     |                   | Event description    |
+| ip_address | varchar(45)  | YES  |     |                   | Client IP address    |
+| created_at | timestamp    | YES  | MUL | CURRENT_TIMESTAMP | When event occurred  |
+
+Index:
+- idx_logs_created_at: For date-range queries
+
+Relationships:
+- FK user_id -> users(id) ON DELETE SET NULL
+
+Event Types Used:
+- "User Login" - User login events
+- "User Signup" - New user registration
+- "Data Import" - CSV/data file imports
+- "Settings Update" - Settings changes
+- "Profile Update" - Profile changes
+- "Account Deleted" - Account deletion
+- "System Initialized" - System startup events
+- "Schema Update" - Database schema changes
+
+================================================================================
+TABLE: upload_history
+================================================================================
+Description: Tracks file uploads and data import history
+
+| Column            | Type                                | Null | Key | Default           | Notes                |
+|-------------------|-------------------------------------|------|-----|-------------------|----------------------|
+| id                | int                                 | NO   | PRI | AUTO_INCREMENT    | Primary key          |
+| user_id           | int                                 | YES  | MUL |                   | FK to users          |
+| filename          | varchar(255)                        | NO   |     |                   | Uploaded file name   |
+| file_type         | varchar(50)                         | YES  |     |                   | MIME type or ext     |
+| records_processed | int                                 | YES  |     | 0                 | Rows imported        |
+| records_failed    | int                                 | YES  |     | 0                 | Failed row count     |
+| status            | enum('Success','Failed','Processing')| YES |     | 'Processing'      | Import status        |
+| error_message     | text                                | YES  |     |                   | Error details        |
+| created_at        | timestamp                           | YES  |     | CURRENT_TIMESTAMP |                      |
+
+Relationships:
+- FK user_id -> users(id) ON DELETE SET NULL
+
+================================================================================
+API ENDPOINTS SUMMARY
+================================================================================
+
+Authentication (/api/auth):
+- POST /login          - User login
+- POST /signup         - User registration
+- GET  /me             - Get current user info
+- GET  /profile        - Get user profile
+- PUT  /profile        - Update profile
+- PUT  /profile-picture- Update profile picture
+- PUT  /change-password- Change password
+- DELETE /account      - Delete user account
+
+Dashboard (/api/dashboard):
+- GET /cities          - Get all cities for filter
+- GET /metrics         - Dashboard KPI metrics
+- GET /price-trends    - Monthly price trends
+- GET /regional-distribution - Property distribution by region
+- GET /recent-transactions   - Latest transactions
+- GET /city-stats      - Stats grouped by city
+- GET /summary         - Full dashboard summary
+
+Properties (/api/properties):
+- GET  /               - List properties (with filters)
+- GET  /:id            - Get single property
+- POST /               - Create property
+- PUT  /:id            - Update property
+- DELETE /:id          - Delete property
+- GET  /search/:term   - Search properties
+
+Logs (/api/logs):
+- GET  /               - Get system logs
+- POST /               - Create log entry
+- GET  /stats          - Log statistics
+
+Upload (/api/upload):
+- POST /               - Upload file
+- GET  /history        - Upload history
+- GET  /template       - Get upload template
+
+================================================================================
+DATA FLOW
+================================================================================
+
+1. User Authentication:
+   - User logs in -> JWT token generated -> Stored in localStorage
+   - All API calls include Bearer token in header
+   - Login events logged to 'logs' table
+
+2. Property Data:
+   - CSV uploads processed -> properties table populated
+   - Region extracted and stored in regions table
+   - Upload tracked in upload_history table
+
+3. Dashboard Analytics:
+   - Metrics computed from properties + transactions
+   - City filter applies to all queries
+   - Price trends from transactions or computed averages
+
+4. System Logging:
+   - All major events logged automatically
+   - Includes: logins, uploads, settings changes, errors
+   - Used for audit trail and debugging
+
+================================================================================

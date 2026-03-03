@@ -212,3 +212,141 @@ td {
 tr:last-child td {
   border-bottom: none;
 }
+
+/* Active Navigation */
+.active-nav {
+  background: var(--primary) !important;
+  color: white !important;
+}
+
+/* Animate pulse */
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+.animate-spin {
+  animation: spin 1s linear infinite;
+}
+
+/* Dark Mode */
+.dark-mode {
+  --primary: #f59e0b;
+  --primary-dark: #d97706;
+  --bg-color: #0f172a;
+  --card-bg: #1e293b;
+  --text-main: #f1f5f9;
+  --text-secondary: #94a3b8;
+  --sidebar-bg: #1e293b;
+  --border-color: #334155;
+  --success: #10b981;
+  --danger: #ef4444;
+  --warning: #f59e0b;
+}
+
+.dark-mode body {
+  background-color: var(--bg-color);
+  color: var(--text-main);
+}
+
+.dark-mode .sidebar {
+  background: var(--sidebar-bg);
+  border-right-color: var(--border-color);
+}
+
+.dark-mode .top-bar {
+  background: rgba(30, 41, 59, 0.9);
+  border-bottom-color: var(--border-color);
+}
+
+.dark-mode .card {
+  background: var(--card-bg);
+  border-color: var(--border-color);
+}
+
+.dark-mode .btn-outline {
+  background: var(--card-bg);
+  border-color: var(--border-color);
+  color: var(--text-main);
+}
+
+.dark-mode .btn-outline:hover {
+  background: var(--bg-color);
+}
+
+.dark-mode input,
+.dark-mode select {
+  background: var(--bg-color) !important;
+  border-color: var(--border-color) !important;
+  color: var(--text-main);
+}
+
+.dark-mode th,
+.dark-mode td {
+  border-bottom-color: var(--border-color);
+}
+
+.dark-mode .metric-card {
+  border-color: var(--border-color);
+}
+
+/* Modal Styles */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  backdrop-filter: blur(4px);
+}
+
+.modal-content {
+  background: var(--card-bg);
+  border-radius: var(--radius);
+  padding: 2rem;
+  max-width: 600px;
+  width: 90%;
+  max-height: 80vh;
+  overflow-y: auto;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.modal-header h2 {
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+.modal-close {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+  color: var(--text-secondary);
+  padding: 0.25rem;
+}
+
+.modal-close:hover {
+  color: var(--text-main);
+}
+
+/* Transaction row hover */
+.transaction-row:hover {
+  background: var(--bg-color);
+}
+
+.dark-mode .transaction-row:hover {
+  background: rgba(255, 255, 255, 0.05);
+}

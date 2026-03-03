@@ -135,7 +135,7 @@ router.get('/profile', async (req, res) => {
         
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
         
-        const users = await query('SELECT id, name, email, role, created_at FROM users WHERE id = ?', [decoded.id]);
+        const users = await query('SELECT id, name, email, role, profile_picture, created_at FROM users WHERE id = ?', [decoded.id]);
         
         if (users.length === 0) {
             return res.status(404).json({ error: 'User not found' });
@@ -226,6 +226,82 @@ router.put('/change-password', async (req, res) => {
     } catch (error) {
         console.error('Change password error:', error);
         res.status(500).json({ error: 'Failed to change password' });
+    }
+});
+
+// PUT /api/auth/profile-picture - Update profile picture  
+router.put('/profile-picture', async (req, res) => {
+    try {
+        const authHeader = req.headers.authorization;
+        if (!authHeader) {
+            return res.status(401).json({ error: 'No token provided' });
+        }
+        
+        const jwt = require('jsonwebtoken');
+        const token = authHeader.split(' ')[1];
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        
+        const { profile_picture } = req.body;
+        
+        await query('UPDATE users SET profile_picture = ? WHERE id = ?', [profile_picture, decoded.id]);
+        
+        // Log the update
+        await query(
+            'INSERT INTO logs (user_id, event, details) VALUES (?, ?, ?)',
+            [decoded.id, 'Profile Update', 'User updated profile picture']
+        );
+        
+        const users = await query('SELECT id, name, email, role, profile_picture, created_at FROM users WHERE id = ?', [decoded.id]);
+        
+        res.json({ message: 'Profile picture updated', user: users[0] });
+    } catch (error) {
+        console.error('Update profile picture error:', error);
+        res.status(500).json({ error: 'Failed to update profile picture' });
+    }
+});
+
+// DELETE /api/auth/account - Delete user account
+router.delete('/account', async (req, res) => {
+    try {
+        const authHeader = req.headers.authorization;
+        if (!authHeader) {
+            return res.status(401).json({ error: 'No token provided' });
+        }
+        
+        const jwt = require('jsonwebtoken');
+        const token = authHeader.split(' ')[1];
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        
+        const { password } = req.body;
+        
+        if (!password) {
+            return res.status(400).json({ error: 'Password is required to delete account' });
+        }
+        
+        // Verify password
+        const users = await query('SELECT * FROM users WHERE id = ?', [decoded.id]);
+        if (users.length === 0) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+        
+        const isMatch = await bcrypt.compare(password, users[0].password_hash);
+        if (!isMatch) {
+            return res.status(401).json({ error: 'Password is incorrect' });
+        }
+        
+        // Log the deletion before deleting
+        await query(
+            'INSERT INTO logs (user_id, event, details) VALUES (?, ?, ?)',
+            [decoded.id, 'Account Deleted', `User ${users[0].email} deleted their account`]
+        );
+        
+        // Delete user
+        await query('DELETE FROM users WHERE id = ?', [decoded.id]);
+        
+        res.json({ message: 'Account deleted successfully' });
+    } catch (error) {
+        console.error('Delete account error:', error);
+        res.status(500).json({ error: 'Failed to delete account' });
     }
 });
 

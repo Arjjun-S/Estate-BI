@@ -7,6 +7,7 @@ import UploadPage from './pages/UploadPage';
 import ReportsPage from './pages/ReportsPage';
 import LogsPage from './pages/LogsPage';
 import LoginPage from './pages/LoginPage';
+import ProfilePage from './pages/ProfilePage';
 import { isAuthenticated } from './services/api';
 import './index.css';
 
@@ -48,6 +49,7 @@ const App = () => {
           <Route path="/upload" element={<ProtectedRoute><UploadPage /></ProtectedRoute>} />
           <Route path="/reports" element={<ProtectedRoute><ReportsPage /></ProtectedRoute>} />
           <Route path="/logs" element={<ProtectedRoute><LogsPage /></ProtectedRoute>} />
+          <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
         </Routes>
       </Layout>
     </BrowserRouter>

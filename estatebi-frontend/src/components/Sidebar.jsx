@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, UploadCloud, BarChart3, ScrollText, LogOut } from 'lucide-react';
+import { LayoutDashboard, UploadCloud, BarChart3, ScrollText, LogOut, User, Settings } from 'lucide-react';
 import { logout } from '../services/api';
 import '../index.css';
 
@@ -15,9 +15,7 @@ const Sidebar = () => {
     return (
         <aside className="sidebar">
             <div style={{ marginBottom: '2rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                <div style={{ width: 40, height: 40, background: 'var(--primary)', borderRadius: '0.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white' }}>
-                    <LayoutDashboard size={24} />
-                </div>
+                <img src="/logo.png" alt="EstateBI Logo" style={{ width: 40, height: 40, borderRadius: '0.5rem' }} />
                 <h2 style={{ fontSize: '1.25rem', fontWeight: 700 }}>EstateBI</h2>
             </div>
 
@@ -33,6 +31,9 @@ const Sidebar = () => {
                 </NavLink>
                 <NavLink to="/logs" className={({ isActive }) => `btn btn-outline ${isActive ? 'active-nav' : ''}`} style={{ border: 'none', justifyContent: 'flex-start', background: 'transparent' }}>
                     <ScrollText size={20} /> System Logs
+                </NavLink>
+                <NavLink to="/profile" className={({ isActive }) => `btn btn-outline ${isActive ? 'active-nav' : ''}`} style={{ border: 'none', justifyContent: 'flex-start', background: 'transparent' }}>
+                    <User size={20} /> Profile
                 </NavLink>
             </nav>
 

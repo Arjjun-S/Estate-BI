@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import LineChart from '../components/LineChart';
 import BarChart from '../components/BarChart';
-import { getCities, getDashboardMetrics, getPriceTrends, getRegionalDistribution, getRecentTransactions } from '../services/api';
-import { Package, TrendingUp, Home, Clock, Upload, ArrowUpRight, ArrowDownRight, Loader2, MapPin, ChevronDown } from 'lucide-react';
+import { getCities, getDashboardMetrics, getPriceTrends, getRegionalDistribution, getRecentTransactions, getProperty } from '../services/api';
+import { Package, TrendingUp, Home, Clock, Upload, ArrowUpRight, ArrowDownRight, Loader2, MapPin, ChevronDown, X, Building, Calendar, DollarSign, User, Mail, Info } from 'lucide-react';
 
 const DashboardPage = () => {
     const [metrics, setMetrics] = useState({
@@ -18,6 +18,13 @@ const DashboardPage = () => {
     const [error, setError] = useState(null);
     const [cities, setCities] = useState([]);
     const [selectedCity, setSelectedCity] = useState('all');
+    const [searchTerm, setSearchTerm] = useState('');
+    
+    // Transaction modal states
+    const [selectedTransaction, setSelectedTransaction] = useState(null);
+    const [transactionModal, setTransactionModal] = useState(false);
+    const [propertyDetail, setPropertyDetail] = useState(null);
+    const [loadingDetail, setLoadingDetail] = useState(false);
 
     // Fetch cities on mount
     useEffect(() => {
@@ -81,6 +88,52 @@ const DashboardPage = () => {
         
         fetchData();
     }, [selectedCity]);
+
+    // Handle city search from header
+    const handleCitySearch = (term) => {
+        setSearchTerm(term);
+        if (term) {
+            const matchingCity = cities.find(c => 
+                c.city.toLowerCase().includes(term.toLowerCase())
+            );
+            if (matchingCity) {
+                setSelectedCity(matchingCity.city);
+            }
+        }
+    };
+
+    // Filter cities based on search term
+    const filteredCities = searchTerm 
+        ? cities.filter(c => c.city.toLowerCase().includes(searchTerm.toLowerCase()))
+        : cities;
+
+    // Handle transaction click to show details
+    const handleTransactionClick = async (transaction) => {
+        setSelectedTransaction(transaction);
+        setTransactionModal(true);
+        setLoadingDetail(true);
+        
+        try {
+            // Try to fetch property details if we have a property_id
+            if (transaction.property_id) {
+                const response = await getProperty(transaction.property_id.replace(/[A-Z]/g, ''));
+                if (response?.data) {
+                    setPropertyDetail(response.data);
+                }
+            }
+        } catch (error) {
+            console.error('Failed to fetch property details:', error);
+        } finally {
+            setLoadingDetail(false);
+        }
+    };
+
+    // Close transaction modal
+    const closeTransactionModal = () => {
+        setTransactionModal(false);
+        setSelectedTransaction(null);
+        setPropertyDetail(null);
+    };
 
     if (loading) {
         return (
@@ -213,7 +266,12 @@ const DashboardPage = () => {
                         </thead>
                         <tbody>
                             {transactions.map((t) => (
-                                <tr key={t.transaction_id}>
+                                <tr 
+                                    key={t.transaction_id} 
+                                    onClick={() => handleTransactionClick(t)}
+                                    style={{ cursor: 'pointer' }}
+                                    className="transaction-row"
+                                >
                                     <td style={{ fontWeight: 600 }}>{t.property_id}</td>
                                     <td>
                                         <span className={`status-badge ${t.status === 'Completed' ? 'status-success' :
@@ -224,13 +282,118 @@ const DashboardPage = () => {
                                     </td>
                                     <td style={{ fontWeight: 600 }}>₹{Number(t.value).toLocaleString()}</td>
                                     <td style={{ color: 'var(--text-secondary)' }}>{t.date}</td>
-                                    <td style={{ color: 'var(--text-secondary)' }}>{t.action}</td>
+                                    <td style={{ color: 'var(--primary)', fontWeight: 500 }}>{t.action}</td>
                                 </tr>
                             ))}
                         </tbody>
                     </table>
                 </div>
             </div>
+
+            {/* Transaction Detail Modal */}
+            {transactionModal && selectedTransaction && (
+                <div className="modal-overlay" onClick={closeTransactionModal}>
+                    <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+                        <div className="modal-header">
+                            <h2>Transaction Details</h2>
+                            <button className="modal-close" onClick={closeTransactionModal}>
+                                <X size={20} />
+                            </button>
+                        </div>
+                        
+                        <div style={{ display: 'grid', gap: '1.5rem' }}>
+                            {/* Transaction Info */}
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                                <div style={{ padding: '1rem', background: 'var(--bg-color)', borderRadius: '0.5rem' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>
+                                        <Building size={16} />
+                                        <span style={{ fontSize: '0.85rem' }}>Property ID</span>
+                                    </div>
+                                    <p style={{ fontWeight: 600, fontSize: '1.1rem' }}>{selectedTransaction.property_id}</p>
+                                </div>
+                                <div style={{ padding: '1rem', background: 'var(--bg-color)', borderRadius: '0.5rem' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>
+                                        <DollarSign size={16} />
+                                        <span style={{ fontSize: '0.85rem' }}>Transaction Value</span>
+                                    </div>
+                                    <p style={{ fontWeight: 600, fontSize: '1.1rem', color: 'var(--success)' }}>₹{Number(selectedTransaction.value).toLocaleString()}</p>
+                                </div>
+                                <div style={{ padding: '1rem', background: 'var(--bg-color)', borderRadius: '0.5rem' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>
+                                        <Calendar size={16} />
+                                        <span style={{ fontSize: '0.85rem' }}>Transaction Date</span>
+                                    </div>
+                                    <p style={{ fontWeight: 600 }}>{selectedTransaction.date}</p>
+                                </div>
+                                <div style={{ padding: '1rem', background: 'var(--bg-color)', borderRadius: '0.5rem' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>
+                                        <Info size={16} />
+                                        <span style={{ fontSize: '0.85rem' }}>Status</span>
+                                    </div>
+                                    <span className={`status-badge ${selectedTransaction.status === 'Completed' ? 'status-success' :
+                                            selectedTransaction.status === 'Pending' ? 'status-pending' : 'status-error'
+                                        }`}>
+                                        {selectedTransaction.status}
+                                    </span>
+                                </div>
+                            </div>
+
+                            {/* Property Details */}
+                            {loadingDetail ? (
+                                <div style={{ display: 'flex', justifyContent: 'center', padding: '2rem' }}>
+                                    <Loader2 size={24} className="animate-spin" style={{ color: 'var(--primary)' }} />
+                                </div>
+                            ) : propertyDetail ? (
+                                <div>
+                                    <h3 style={{ marginBottom: '1rem', fontSize: '1rem' }}>Property Information</h3>
+                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem' }}>
+                                        <div style={{ padding: '0.75rem', background: 'var(--bg-color)', borderRadius: '0.5rem' }}>
+                                            <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>City</p>
+                                            <p style={{ fontWeight: 500 }}>{propertyDetail.city || selectedTransaction.city}</p>
+                                        </div>
+                                        <div style={{ padding: '0.75rem', background: 'var(--bg-color)', borderRadius: '0.5rem' }}>
+                                            <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Type</p>
+                                            <p style={{ fontWeight: 500 }}>{propertyDetail.type || 'Residential'}</p>
+                                        </div>
+                                        <div style={{ padding: '0.75rem', background: 'var(--bg-color)', borderRadius: '0.5rem' }}>
+                                            <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Area</p>
+                                            <p style={{ fontWeight: 500 }}>{propertyDetail.sqft ? `${propertyDetail.sqft} sqft` : 'N/A'}</p>
+                                        </div>
+                                        <div style={{ padding: '0.75rem', background: 'var(--bg-color)', borderRadius: '0.5rem' }}>
+                                            <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Bedrooms</p>
+                                            <p style={{ fontWeight: 500 }}>{propertyDetail.bedrooms || 'N/A'}</p>
+                                        </div>
+                                        <div style={{ padding: '0.75rem', background: 'var(--bg-color)', borderRadius: '0.5rem' }}>
+                                            <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Bathrooms</p>
+                                            <p style={{ fontWeight: 500 }}>{propertyDetail.bathrooms || 'N/A'}</p>
+                                        </div>
+                                        <div style={{ padding: '0.75rem', background: 'var(--bg-color)', borderRadius: '0.5rem' }}>
+                                            <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Year Built</p>
+                                            <p style={{ fontWeight: 500 }}>{propertyDetail.year_built || 'N/A'}</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div style={{ padding: '1rem', background: 'var(--bg-color)', borderRadius: '0.5rem', textAlign: 'center' }}>
+                                    <p style={{ color: 'var(--text-secondary)' }}>Property details not available</p>
+                                    <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginTop: '0.5rem' }}>
+                                        City: {selectedTransaction.city || 'N/A'}
+                                    </p>
+                                </div>
+                            )}
+
+                            <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end', marginTop: '1rem' }}>
+                                <button className="btn btn-outline" onClick={closeTransactionModal}>
+                                    Close
+                                </button>
+                                <button className="btn btn-primary">
+                                    {selectedTransaction.action}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

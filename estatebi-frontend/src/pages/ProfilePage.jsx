@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { User, Mail, Shield, Calendar, Save, Loader2, Key, Camera } from 'lucide-react';
-import api from '../services/api';
+import { useNavigate } from 'react-router-dom';
+import { User, Mail, Shield, Calendar, Save, Loader2, Key, Camera, Trash2, AlertTriangle } from 'lucide-react';
+import api, { logout } from '../services/api';
 
 const ProfilePage = () => {
+    const navigate = useNavigate();
     const [user, setUser] = useState(null);
     const [loading, setLoading] = useState(false);
     const [saving, setSaving] = useState(false);
@@ -18,6 +20,11 @@ const ProfilePage = () => {
     const [currentPassword, setCurrentPassword] = useState('');
     const [newPassword, setNewPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
+
+    // Delete account states
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+    const [deletePassword, setDeletePassword] = useState('');
+    const [deleting, setDeleting] = useState(false);
 
     useEffect(() => {
         loadProfile();
@@ -95,6 +102,28 @@ const ProfilePage = () => {
         }
     };
 
+    const handleDeleteAccount = async (e) => {
+        e.preventDefault();
+        
+        if (!deletePassword) {
+            setMessage({ type: 'error', text: 'Please enter your password to confirm deletion' });
+            return;
+        }
+
+        setDeleting(true);
+        setMessage({ type: '', text: '' });
+
+        try {
+            await api.delete('/auth/account', { data: { password: deletePassword } });
+            logout();
+            navigate('/login');
+        } catch (error) {
+            console.error('Error deleting account:', error);
+            setMessage({ type: 'error', text: error.response?.data?.error || 'Failed to delete account' });
+            setDeleting(false);
+        }
+    };
+
     const getInitials = (name) => {
         if (!name) return 'U';
         return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
@@ -145,7 +174,9 @@ const ProfilePage = () => {
                         width: 100, 
                         height: 100, 
                         borderRadius: '50%', 
-                        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                        background: user?.profile_picture 
+                            ? `url(${user.profile_picture}) center/cover` 
+                            : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
@@ -153,9 +184,10 @@ const ProfilePage = () => {
                         color: 'white',
                         fontSize: '2rem',
                         fontWeight: 700,
-                        position: 'relative'
+                        position: 'relative',
+                        overflow: 'hidden'
                     }}>
-                        {getInitials(user?.name)}
+                        {!user?.profile_picture && getInitials(user?.name)}
                         <button style={{
                             position: 'absolute',
                             bottom: 0,
@@ -341,6 +373,76 @@ const ProfilePage = () => {
                                     style={{ fontSize: '0.85rem', padding: '0.5rem 1rem' }}
                                 >
                                     Change Password
+                                </button>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Danger Zone - Delete Account */}
+                    <div className="card" style={{ padding: '1.5rem', border: '1px solid var(--danger)' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                            <h3 style={{ fontSize: '1.1rem', fontWeight: 600, color: 'var(--danger)' }}>Danger Zone</h3>
+                        </div>
+
+                        {showDeleteConfirm ? (
+                            <form onSubmit={handleDeleteAccount}>
+                                <div style={{ 
+                                    background: '#fef2f2', 
+                                    padding: '1rem', 
+                                    borderRadius: '0.5rem', 
+                                    marginBottom: '1rem',
+                                    display: 'flex',
+                                    alignItems: 'flex-start',
+                                    gap: '0.75rem'
+                                }}>
+                                    <AlertTriangle size={20} color="#991b1b" style={{ flexShrink: 0, marginTop: '0.1rem' }} />
+                                    <div style={{ color: '#991b1b', fontSize: '0.9rem' }}>
+                                        <p style={{ fontWeight: 600, marginBottom: '0.25rem' }}>This action is irreversible</p>
+                                        <p>All your data will be permanently deleted. This cannot be undone.</p>
+                                    </div>
+                                </div>
+                                <div className="input-group" style={{ marginBottom: '1rem' }}>
+                                    <label style={{ fontWeight: 500, marginBottom: '0.5rem', display: 'block' }}>
+                                        Enter your password to confirm
+                                    </label>
+                                    <input
+                                        type="password"
+                                        value={deletePassword}
+                                        onChange={(e) => setDeletePassword(e.target.value)}
+                                        required
+                                        placeholder="Your current password"
+                                        style={{ width: '100%' }}
+                                    />
+                                </div>
+                                <div style={{ display: 'flex', gap: '0.75rem' }}>
+                                    <button 
+                                        type="submit" 
+                                        className="btn"
+                                        disabled={deleting}
+                                        style={{ background: 'var(--danger)', color: 'white' }}
+                                    >
+                                        {deleting ? <><Loader2 size={16} className="animate-spin" /> Deleting...</> : <><Trash2 size={16} /> Delete My Account</>}
+                                    </button>
+                                    <button type="button" className="btn btn-outline" onClick={() => { setShowDeleteConfirm(false); setDeletePassword(''); }}>
+                                        Cancel
+                                    </button>
+                                </div>
+                            </form>
+                        ) : (
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '1rem', background: '#fef2f2', borderRadius: '0.5rem' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                                    <Trash2 size={20} style={{ color: 'var(--danger)' }} />
+                                    <div>
+                                        <p style={{ fontWeight: 500 }}>Delete Account</p>
+                                        <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Permanently delete your account and all data</p>
+                                    </div>
+                                </div>
+                                <button 
+                                    className="btn"
+                                    onClick={() => setShowDeleteConfirm(true)}
+                                    style={{ background: 'var(--danger)', color: 'white', fontSize: '0.85rem', padding: '0.5rem 1rem' }}
+                                >
+                                    Delete Account
                                 </button>
                             </div>
                         )}
