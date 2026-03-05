@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import LineChart from '../components/LineChart';
 import BarChart from '../components/BarChart';
 import { getCities, getDashboardMetrics, getPriceTrends, getRegionalDistribution, getRecentTransactions, getProperty } from '../services/api';
-import { Package, TrendingUp, Home, Clock, Upload, ArrowUpRight, ArrowDownRight, Loader2, MapPin, ChevronDown, X, Building, Calendar, DollarSign, User, Mail, Info } from 'lucide-react';
+import { Upload, Loader2, MapPin, ChevronDown, X, Building, Calendar, DollarSign, User, Info } from 'lucide-react';
 
 const DashboardPage = () => {
     const [metrics, setMetrics] = useState({
@@ -151,6 +151,36 @@ const DashboardPage = () => {
                     <p style={{ color: 'var(--text-secondary)' }}>Real-time business intelligence for Housing Data Warehouse V3.0</p>
                 </div>
                 <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                    {/* City Search Input */}
+                    <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                        <input
+                            type="text"
+                            placeholder="Search cities..."
+                            value={searchTerm}
+                            onChange={(e) => {
+                                setSearchTerm(e.target.value);
+                                if (e.target.value) {
+                                    const match = cities.find(c => 
+                                        c.city.toLowerCase().includes(e.target.value.toLowerCase())
+                                    );
+                                    if (match) {
+                                        setSelectedCity(match.city);
+                                    }
+                                }
+                            }}
+                            style={{
+                                padding: '0.5rem 0.75rem 0.5rem 2.5rem',
+                                borderRadius: '8px',
+                                border: '1px solid var(--border-color)',
+                                background: 'var(--card-bg)',
+                                color: 'var(--text-main)',
+                                fontSize: '0.875rem',
+                                width: '180px'
+                            }}
+                        />
+                        <MapPin size={16} style={{ position: 'absolute', left: '10px', color: 'var(--text-secondary)', pointerEvents: 'none' }} />
+                    </div>
+                    
                     {/* City Filter */}
                     <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
                         <MapPin size={16} style={{ position: 'absolute', left: '12px', color: 'var(--text-secondary)', pointerEvents: 'none' }} />
@@ -187,18 +217,12 @@ const DashboardPage = () => {
                 <MetricCard
                     title="Total Inventory"
                     value={metrics.total_inventory.toLocaleString()}
-                    icon={<Package size={24} color="white" />}
-                    trend="+2.4%"
                     color="var(--primary)"
                     sub="Updated 2m ago"
                 />
                 <MetricCard
                     title="Avg Market Price"
                     value={`₹${(metrics.avg_price / 100000).toFixed(1)}L`}
-                    icon={<TrendingUp size={24} color="#f59e0b" />}
-                    trend="-0.8%"
-                    trendColor="red"
-                    bgIcon="#fff"
                     color="#fff"
                     sub="Active Listings Only"
                     textColor="var(--text-main)"
@@ -206,10 +230,6 @@ const DashboardPage = () => {
                 <MetricCard
                     title="Occupancy Rate"
                     value={`${(metrics.occupancy_rate * 100).toFixed(1)}%`}
-                    icon={<Home size={24} color="#10b981" />}
-                    trend="94.2%"
-                    trendColor="green"
-                    bgIcon="#fff"
                     color="#fff"
                     sub="Across All Regions"
                     textColor="var(--text-main)"
@@ -217,10 +237,6 @@ const DashboardPage = () => {
                 <MetricCard
                     title="Pending Sales"
                     value={metrics.pending_sales}
-                    icon={<Clock size={24} color="#f59e0b" />}
-                    trend="+12"
-                    trendColor="green"
-                    bgIcon="#fff"
                     color="#fff"
                     sub="Transactions in Escrow"
                     textColor="var(--text-main)"
@@ -398,35 +414,13 @@ const DashboardPage = () => {
     );
 };
 
-const MetricCard = ({ title, value, icon, trend, color, bgIcon, sub, textColor, trendColor }) => {
+const MetricCard = ({ title, value, color, sub, textColor }) => {
     const isPrimary = color === 'var(--primary)';
     return (
         <div className="card metric-card" style={{ background: color, color: isPrimary ? 'white' : textColor, border: isPrimary ? 'none' : '' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                <div style={{
-                    width: 40, height: 40,
-                    borderRadius: 8,
-                    background: isPrimary ? 'rgba(255,255,255,0.2)' : '#f1f5f9',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center'
-                }}>
-                    {icon}
-                </div>
-                {trend && (
-                    <span style={{
-                        fontSize: '0.8rem', fontWeight: 600,
-                        color: isPrimary ? 'white' : (trendColor === 'red' ? 'var(--danger)' : 'var(--success)'),
-                        background: isPrimary ? 'rgba(255,255,255,0.2)' : (trendColor === 'red' ? '#fee2e2' : '#dcfce7'),
-                        padding: '0.2rem 0.5rem', borderRadius: 4
-                    }}>
-                        {trend}
-                    </span>
-                )}
-            </div>
-            <div>
-                <div style={{ fontSize: '0.9rem', opacity: 0.9, marginTop: '1rem' }}>{title}</div>
-                <div className="metric-value">{value}</div>
-                <div style={{ fontSize: '0.8rem', opacity: 0.8 }}>{sub}</div>
-            </div>
+            <div style={{ fontSize: '0.9rem', opacity: 0.9 }}>{title}</div>
+            <div className="metric-value" style={{ margin: '0.5rem 0' }}>{value}</div>
+            <div style={{ fontSize: '0.8rem', opacity: 0.8 }}>{sub}</div>
         </div>
     );
 };

@@ -44,15 +44,7 @@ router.get('/', async (req, res) => {
         
         const logs = await query(sql, params);
         
-        // If no logs, return sample data
-        if (logs.length === 0) {
-            return res.json([
-                { id: 1, time: '2026-02-19 10:30:00', user: 'Admin User', event: 'User Login', details: 'Logged in from Chrome' },
-                { id: 2, time: '2026-02-19 09:15:00', user: 'System', event: 'Data Import', details: 'Imported 27 properties' },
-                { id: 3, time: '2026-02-18 16:45:00', user: 'Admin User', event: 'Settings Update', details: 'Updated notification preferences' }
-            ]);
-        }
-        
+        // Return actual logs only - no sample data
         res.json(logs);
     } catch (error) {
         console.error('Logs error:', error);

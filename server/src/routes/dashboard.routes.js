@@ -295,4 +295,142 @@ router.get('/summary', async (req, res) => {
     }
 });
 
+// ============================================================================
+// GOLD LAYER ANALYTICS ENDPOINTS
+// ============================================================================
+
+// GET /api/dashboard/gold/property-summary - Property summary by city (Gold View)
+router.get('/gold/property-summary', async (req, res) => {
+    try {
+        const summary = await query(`
+            SELECT * FROM gold_property_summary_by_city
+        `);
+        res.json(summary);
+    } catch (error) {
+        console.error('Gold property summary error:', error);
+        // Fallback if view doesn't exist
+        const fallback = await query(`
+            SELECT 
+                city,
+                state,
+                COUNT(*) AS total_properties,
+                SUM(CASE WHEN status = 'Active' THEN 1 ELSE 0 END) AS active_listings,
+                SUM(CASE WHEN status = 'Sold' THEN 1 ELSE 0 END) AS sold_properties,
+                ROUND(AVG(price), 2) AS avg_price,
+                ROUND(AVG(sqft), 0) AS avg_sqft,
+                ROUND(AVG(price/NULLIF(sqft, 0)), 2) AS avg_price_per_sqft
+            FROM properties
+            GROUP BY city, state
+        `);
+        res.json(fallback);
+    }
+});
+
+// GET /api/dashboard/gold/sales-by-month - Monthly sales (Gold View)
+router.get('/gold/sales-by-month', async (req, res) => {
+    try {
+        const sales = await query(`
+            SELECT * FROM gold_sales_by_month
+        `);
+        res.json(sales.length > 0 ? sales : []);
+    } catch (error) {
+        console.error('Gold sales by month error:', error);
+        res.json([]);
+    }
+});
+
+// GET /api/dashboard/gold/agent-performance - Agent performance metrics (Gold View)
+router.get('/gold/agent-performance', async (req, res) => {
+    try {
+        const performance = await query(`
+            SELECT * FROM gold_agent_performance
+        `);
+        res.json(performance.length > 0 ? performance : []);
+    } catch (error) {
+        console.error('Gold agent performance error:', error);
+        res.json([]);
+    }
+});
+
+// GET /api/dashboard/gold/property-types - Property type distribution (Gold View)
+router.get('/gold/property-types', async (req, res) => {
+    try {
+        const types = await query(`
+            SELECT * FROM gold_property_type_distribution
+        `);
+        res.json(types.length > 0 ? types : []);
+    } catch (error) {
+        console.error('Gold property types error:', error);
+        // Fallback
+        const fallback = await query(`
+            SELECT 
+                type,
+                COUNT(*) AS count,
+                ROUND(COUNT(*) * 100.0 / (SELECT COUNT(*) FROM properties), 2) AS percentage,
+                ROUND(AVG(price), 2) AS avg_price
+            FROM properties
+            GROUP BY type
+        `);
+        res.json(fallback);
+    }
+});
+
+// GET /api/dashboard/gold/regional-market - Regional market analysis (Gold View)
+router.get('/gold/regional-market', async (req, res) => {
+    try {
+        const market = await query(`
+            SELECT * FROM gold_regional_market
+        `);
+        res.json(market.length > 0 ? market : []);
+    } catch (error) {
+        console.error('Gold regional market error:', error);
+        res.json([]);
+    }
+});
+
+// GET /api/dashboard/gold/inventory - Inventory snapshot (Gold View)
+router.get('/gold/inventory', async (req, res) => {
+    try {
+        const inventory = await query(`
+            SELECT * FROM gold_inventory_snapshot
+        `);
+        res.json(inventory[0] || {});
+    } catch (error) {
+        console.error('Gold inventory error:', error);
+        // Fallback
+        const fallback = await query(`
+            SELECT 
+                (SELECT COUNT(*) FROM properties WHERE status = 'Active') AS total_active_listings,
+                (SELECT COUNT(*) FROM properties WHERE status = 'Pending') AS pending_sales,
+                (SELECT ROUND(AVG(price), 2) FROM properties WHERE status = 'Active') AS avg_listing_price
+        `);
+        res.json(fallback[0] || {});
+    }
+});
+
+// GET /api/dashboard/gold/daily-metrics - Historical daily metrics (Gold Table)
+router.get('/gold/daily-metrics', async (req, res) => {
+    try {
+        const { city, days = 30 } = req.query;
+        let whereClause = '1=1';
+        
+        if (city && city !== 'all') {
+            whereClause = `city = '${city}'`;
+        }
+        
+        const metrics = await query(`
+            SELECT *
+            FROM gold_daily_metrics
+            WHERE ${whereClause}
+            ORDER BY metric_date DESC
+            LIMIT ?
+        `, [parseInt(days)]);
+        
+        res.json(metrics);
+    } catch (error) {
+        console.error('Gold daily metrics error:', error);
+        res.json([]);
+    }
+});
+
 module.exports = router;

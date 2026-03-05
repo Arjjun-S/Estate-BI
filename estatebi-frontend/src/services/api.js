@@ -74,6 +74,10 @@ export const updateUserSettings = (data) => api.put('/settings/user', data);
 export const changePassword = (data) => api.put('/settings/password', data);
 export const getSystemSettings = () => api.get('/settings/system');
 
+// Profile endpoints
+export const deleteAccount = (password) => api.delete('/auth/delete-account', { data: { password } });
+export const updateProfilePicture = (profile_picture) => api.put('/auth/profile-picture', { profile_picture });
+
 // Helper function to logout
 export const logout = () => {
     localStorage.removeItem('token');

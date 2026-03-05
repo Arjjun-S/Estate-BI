@@ -6,6 +6,7 @@ const { parse } = require('csv-parse');
 const { query, transaction } = require('../config/db');
 const { authMiddleware } = require('../middleware/auth');
 const { preprocessData, validateRow } = require('../services/preprocess');
+const { loadToBronzeProperties, transformBronzeToSilver, refreshGoldMetrics, getETLStatus } = require('../services/etl');
 
 const router = express.Router();
 
@@ -158,6 +159,188 @@ SLM001,456 Sample Street,Salem,Fairlands,Commercial,Active,8000000,2500,0,1,2019
     res.setHeader('Content-Type', 'text/csv');
     res.setHeader('Content-Disposition', 'attachment; filename=property_template.csv');
     res.send(template);
+});
+
+// ============================================================================
+// MEDALLION ARCHITECTURE ENDPOINTS
+// ============================================================================
+
+// POST /api/upload/bronze - Upload data directly to Bronze layer
+router.post('/bronze', upload.single('file'), async (req, res) => {
+    try {
+        if (!req.file) {
+            return res.status(400).json({ error: 'No file uploaded' });
+        }
+        
+        const filePath = req.file.path;
+        const fileName = req.file.originalname;
+        const fileExt = path.extname(fileName).toLowerCase();
+        
+        let records = [];
+        
+        // Parse file
+        if (fileExt === '.csv') {
+            records = await parseCSV(filePath);
+        } else if (fileExt === '.json') {
+            const content = fs.readFileSync(filePath, 'utf-8');
+            records = JSON.parse(content);
+            if (!Array.isArray(records)) {
+                records = [records];
+            }
+        }
+        
+        const userId = req.user?.id || 1;
+        
+        // Load to Bronze layer
+        const result = await loadToBronzeProperties(records, fileName, userId);
+        
+        // Move file to processed folder
+        const processedDir = path.join(__dirname, '../../..', 'data', 'processed');
+        if (!fs.existsSync(processedDir)) {
+            fs.mkdirSync(processedDir, { recursive: true });
+        }
+        fs.renameSync(filePath, path.join(processedDir, path.basename(filePath)));
+        
+        res.json({
+            message: 'Data loaded to Bronze layer',
+            layer: 'Bronze',
+            importId: result.importId,
+            total: result.total,
+            loaded: result.loaded,
+            failed: result.failed
+        });
+    } catch (error) {
+        console.error('Bronze upload error:', error);
+        res.status(500).json({ error: 'Failed to load to Bronze layer', message: error.message });
+    }
+});
+
+// POST /api/upload/transform - Transform Bronze to Silver
+router.post('/transform', async (req, res) => {
+    try {
+        const { importId } = req.body;
+        
+        const result = await transformBronzeToSilver(importId);
+        
+        // Log the transformation
+        await query(
+            `INSERT INTO logs (event, event_type, details) VALUES (?, ?, ?)`,
+            ['ETL Transform', 'INFO', JSON.stringify(result)]
+        );
+        
+        res.json({
+            message: 'Bronze to Silver transformation complete',
+            processed: result.processed,
+            errors: result.errors,
+            total: result.total
+        });
+    } catch (error) {
+        console.error('Transform error:', error);
+        res.status(500).json({ error: 'Failed to transform data', message: error.message });
+    }
+});
+
+// POST /api/upload/refresh-gold - Refresh Gold layer aggregations
+router.post('/refresh-gold', async (req, res) => {
+    try {
+        const { date } = req.body;
+        
+        const result = await refreshGoldMetrics(date);
+        
+        // Log the refresh
+        await query(
+            `INSERT INTO logs (event, event_type, details) VALUES (?, ?, ?)`,
+            ['Gold Refresh', 'INFO', JSON.stringify(result)]
+        );
+        
+        res.json({
+            message: 'Gold layer refreshed',
+            date: result.date,
+            cities: result.cities
+        });
+    } catch (error) {
+        console.error('Gold refresh error:', error);
+        res.status(500).json({ error: 'Failed to refresh Gold layer', message: error.message });
+    }
+});
+
+// GET /api/upload/etl-status - Get ETL pipeline status
+router.get('/etl-status', async (req, res) => {
+    try {
+        const status = await getETLStatus();
+        res.json(status);
+    } catch (error) {
+        console.error('ETL status error:', error);
+        res.status(500).json({ error: 'Failed to get ETL status', message: error.message });
+    }
+});
+
+// POST /api/upload/full-pipeline - Run complete ETL pipeline (Bronze -> Silver -> Gold)
+router.post('/full-pipeline', upload.single('file'), async (req, res) => {
+    try {
+        if (!req.file) {
+            return res.status(400).json({ error: 'No file uploaded' });
+        }
+        
+        const filePath = req.file.path;
+        const fileName = req.file.originalname;
+        const fileExt = path.extname(fileName).toLowerCase();
+        const userId = req.user?.id || 1;
+        
+        // Parse file
+        let records = [];
+        if (fileExt === '.csv') {
+            records = await parseCSV(filePath);
+        } else if (fileExt === '.json') {
+            const content = fs.readFileSync(filePath, 'utf-8');
+            records = JSON.parse(content);
+            if (!Array.isArray(records)) records = [records];
+        }
+        
+        // Step 1: Load to Bronze
+        const bronzeResult = await loadToBronzeProperties(records, fileName, userId);
+        
+        // Step 2: Transform to Silver
+        const silverResult = await transformBronzeToSilver(bronzeResult.importId);
+        
+        // Step 3: Refresh Gold
+        const goldResult = await refreshGoldMetrics();
+        
+        // Move file to processed folder
+        const processedDir = path.join(__dirname, '../../..', 'data', 'processed');
+        if (!fs.existsSync(processedDir)) {
+            fs.mkdirSync(processedDir, { recursive: true });
+        }
+        fs.renameSync(filePath, path.join(processedDir, path.basename(filePath)));
+        
+        // Log the complete pipeline
+        await query(
+            `INSERT INTO logs (user_id, event, event_type, details) VALUES (?, ?, ?, ?)`,
+            [userId, 'Full ETL Pipeline', 'INFO', JSON.stringify({ bronzeResult, silverResult, goldResult })]
+        );
+        
+        res.json({
+            message: 'Full ETL pipeline completed successfully',
+            pipeline: {
+                bronze: {
+                    importId: bronzeResult.importId,
+                    loaded: bronzeResult.loaded,
+                    failed: bronzeResult.failed
+                },
+                silver: {
+                    processed: silverResult.processed,
+                    errors: silverResult.errors
+                },
+                gold: {
+                    date: goldResult.date,
+                    cities: goldResult.cities
+                }
+            }
+        });
+    } catch (error) {
+        console.error('Full pipeline error:', error);
+        res.status(500).json({ error: 'ETL pipeline failed', message: error.message });
+    }
 });
 
 // Helper: Parse CSV file

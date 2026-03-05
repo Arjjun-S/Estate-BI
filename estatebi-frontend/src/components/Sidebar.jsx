@@ -35,6 +35,9 @@ const Sidebar = () => {
                 <NavLink to="/profile" className={({ isActive }) => `btn btn-outline ${isActive ? 'active-nav' : ''}`} style={{ border: 'none', justifyContent: 'flex-start', background: 'transparent' }}>
                     <User size={20} /> Profile
                 </NavLink>
+                <NavLink to="/settings" className={({ isActive }) => `btn btn-outline ${isActive ? 'active-nav' : ''}`} style={{ border: 'none', justifyContent: 'flex-start', background: 'transparent' }}>
+                    <Settings size={20} /> Settings
+                </NavLink>
             </nav>
 
             <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '1rem' }}>

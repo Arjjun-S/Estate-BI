@@ -3,7 +3,7 @@ const cors = require('cors');
 const path = require('path');
 require('dotenv').config({ path: path.join(__dirname, '../.env') });
 
-const { testConnection } = require('./config/db');
+const { testConnection, query } = require('./config/db');
 
 // Import routes
 const authRoutes = require('./routes/auth.routes');
@@ -24,9 +24,42 @@ app.use(cors({
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Request logging middleware
-app.use((req, res, next) => {
-    console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
+// Request logging middleware - logs to console and database
+app.use(async (req, res, next) => {
+    const timestamp = new Date().toISOString();
+    console.log(`${timestamp} - ${req.method} ${req.path}`);
+    
+    // Log important API events to database
+    const importantPaths = ['/api/auth/login', '/api/auth/signup', '/api/upload', '/api/settings'];
+    const shouldLog = importantPaths.some(p => req.path.startsWith(p)) || req.method !== 'GET';
+    
+    if (shouldLog && req.path !== '/api/logs') {
+        try {
+            // Get user from token if available
+            let userId = null;
+            if (req.headers.authorization) {
+                try {
+                    const jwt = require('jsonwebtoken');
+                    const token = req.headers.authorization.split(' ')[1];
+                    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+                    userId = decoded.id;
+                } catch (e) { /* Token might be invalid */ }
+            }
+            
+            const event = `${req.method} ${req.path}`;
+            const details = req.method !== 'GET' && req.body ? JSON.stringify(req.body).substring(0, 500) : null;
+            const ip = req.ip || req.headers['x-forwarded-for'] || 'unknown';
+            
+            await query(
+                'INSERT INTO logs (user_id, event, details, ip_address) VALUES (?, ?, ?, ?)',
+                [userId, event, details, ip]
+            );
+        } catch (e) {
+            // Don't fail if logging fails
+            console.error('Failed to log request:', e.message);
+        }
+    }
+    
     next();
 });
 
