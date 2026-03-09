@@ -3,9 +3,9 @@ import { BarChart as RBarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer 
 
 const BarChart = ({ data }) => {
     return (
-        <div style={{ width: '100%', height: 300 }}>
+        <div style={{ width: '100%', height: 300, minHeight: 300 }}>
             {data && data.length > 0 ? (
-                <ResponsiveContainer width="100%" height="100%">
+                <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={300}>
                     <RBarChart data={data} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
                         <XAxis
                             dataKey="region"
