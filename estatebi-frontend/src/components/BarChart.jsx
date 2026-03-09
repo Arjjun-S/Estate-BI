@@ -7,13 +7,34 @@ const BarChart = ({ data }) => {
             {data && data.length > 0 ? (
                 <ResponsiveContainer width="100%" height="100%">
                     <RBarChart data={data} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
-                        <XAxis dataKey="region" axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 12 }} />
-                        <YAxis axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 12 }} />
-                        <Tooltip
-                            cursor={{ fill: '#f1f5f9' }}
-                            contentStyle={{ background: '#fff', border: 'none', borderRadius: '8px', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                        <XAxis
+                            dataKey="region"
+                            axisLine={false}
+                            tickLine={false}
+                            tick={{ fill: 'var(--text-secondary)', fontSize: 12 }}
+                            dy={10}
                         />
-                        <Bar dataKey="count" fill="#f59e0b" radius={[4, 4, 0, 0]} />
+                        <YAxis
+                            axisLine={false}
+                            tickLine={false}
+                            tick={{ fill: 'var(--text-secondary)', fontSize: 12 }}
+                        />
+                        <Tooltip
+                            cursor={{ fill: 'var(--bg-color)', opacity: 0.4 }}
+                            contentStyle={{
+                                background: 'var(--card-bg)',
+                                border: '1px solid var(--border-color)',
+                                borderRadius: '12px',
+                                boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)',
+                                color: 'var(--text-main)'
+                            }}
+                        />
+                        <Bar
+                            dataKey="count"
+                            fill="var(--primary)"
+                            radius={[6, 6, 0, 0]}
+                            animationDuration={1500}
+                        />
                     </RBarChart>
                 </ResponsiveContainer>
             ) : (

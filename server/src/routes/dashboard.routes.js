@@ -4,6 +4,25 @@ const { authMiddleware } = require('../middleware/auth');
 
 const router = express.Router();
 
+// Helper function to build dynamic WHERE clauses based on request query parameters
+const buildFilterQuery = (queryParams, prefix = '') => {
+    const { city, type, status, minPrice, maxPrice } = queryParams;
+    let filterString = '';
+    const conditions = [];
+
+    if (city && city !== 'all') conditions.push(`${prefix}city = '${city}'`);
+    if (type && type !== 'all') conditions.push(`${prefix}type = '${type}'`);
+    if (status && status !== 'all') conditions.push(`${prefix}status = '${status}'`);
+    if (minPrice) conditions.push(`${prefix}price >= ${Number(minPrice)}`);
+    if (maxPrice) conditions.push(`${prefix}price <= ${Number(maxPrice)}`);
+
+    if (conditions.length > 0) {
+        filterString = ' AND ' + conditions.join(' AND ');
+    }
+
+    return filterString;
+};
+
 // GET /api/dashboard/cities - Get all unique cities for filter
 router.get('/cities', async (req, res) => {
     try {
@@ -24,38 +43,39 @@ router.get('/cities', async (req, res) => {
 // GET /api/dashboard/metrics - Main dashboard metrics
 router.get('/metrics', async (req, res) => {
     try {
-        const { city } = req.query;
-        const cityFilter = city && city !== 'all' ? `AND city = '${city}'` : '';
-        
+        const filters = buildFilterQuery(req.query, '');
+
         // Total inventory (active properties)
         const inventoryResult = await query(
-            `SELECT COUNT(*) as total_inventory FROM properties WHERE status = 'Active' ${cityFilter}`
+            `SELECT COUNT(*) as total_inventory FROM properties WHERE status = 'Active' ${filters}`
         );
-        
+
         // Average price
         const avgPriceResult = await query(
-            `SELECT AVG(price) as avg_price FROM properties WHERE status = 'Active' ${cityFilter}`
+            `SELECT AVG(price) as avg_price FROM properties WHERE status = 'Active' ${filters}`
         );
-        
+
         // Occupancy rate (sold/total)
-        const totalProperties = await query(`SELECT COUNT(*) as total FROM properties WHERE 1=1 ${cityFilter}`);
-        const soldProperties = await query(`SELECT COUNT(*) as sold FROM properties WHERE status = 'Sold' ${cityFilter}`);
-        const occupancyRate = totalProperties[0].total > 0 
-            ? soldProperties[0].sold / totalProperties[0].total 
+        const totalProperties = await query(`SELECT COUNT(*) as total FROM properties WHERE 1=1 ${filters}`);
+        const soldProperties = await query(`SELECT COUNT(*) as sold FROM properties WHERE status = 'Sold' ${filters}`);
+        const occupancyRate = totalProperties[0].total > 0
+            ? soldProperties[0].sold / totalProperties[0].total
             : 0;
-        
-        // Pending sales (with city filter via properties join)
+
+        // Pending sales (with filters via properties join)
         let pendingQuery = "SELECT COUNT(*) as pending_sales FROM transactions WHERE status = 'Pending'";
-        if (city && city !== 'all') {
+        if (filters) {
+            // Need a specific prefix for transactions join
+            const tFilters = buildFilterQuery(req.query, 'p.');
             pendingQuery = `
                 SELECT COUNT(*) as pending_sales 
                 FROM transactions t
                 JOIN properties p ON t.property_id = p.id
-                WHERE t.status = 'Pending' AND p.city = '${city}'
+                WHERE t.status = 'Pending' ${tFilters}
             `;
         }
         const pendingResult = await query(pendingQuery);
-        
+
         res.json({
             total_inventory: inventoryResult[0].total_inventory || 0,
             avg_price: Math.round(avgPriceResult[0].avg_price || 0),
@@ -71,15 +91,13 @@ router.get('/metrics', async (req, res) => {
 // GET /api/dashboard/price-trends - Monthly price trends
 router.get('/price-trends', async (req, res) => {
     try {
-        const { city } = req.query;
+        const filters = buildFilterQuery(req.query, 'p.');
         let cityJoin = '';
-        let cityFilter = '';
-        
-        if (city && city !== 'all') {
+
+        if (filters) {
             cityJoin = 'JOIN properties p ON t.property_id = p.id';
-            cityFilter = `AND p.city = '${city}'`;
         }
-        
+
         // Generate price trends from transaction data
         const trends = await query(`
             SELECT 
@@ -88,23 +106,25 @@ router.get('/price-trends', async (req, res) => {
                 ROUND(AVG(t.amount)) as avg_price
             FROM transactions t
             ${cityJoin}
-            WHERE t.status != 'Cancelled' ${cityFilter}
+            WHERE t.status != 'Cancelled' ${filters}
             GROUP BY DATE_FORMAT(t.transaction_date, '%Y-%m'), DATE_FORMAT(t.transaction_date, '%b')
             ORDER BY sort_key ASC
             LIMIT 12
         `);
-        
+
         // If no transaction data, generate from properties
         if (!trends || trends.length === 0) {
-            const propCityFilter = city && city !== 'all' ? `WHERE city = '${city}'` : '';
+            const propFilters = buildFilterQuery(req.query, '');
+            const propFilterWhere = propFilters ? `WHERE 1=1 ${propFilters}` : '';
+
             const propData = await query(`
-                SELECT ROUND(AVG(price)) as base_price FROM properties ${propCityFilter}
+                SELECT ROUND(AVG(price)) as base_price FROM properties ${propFilterWhere}
             `);
-            
+
             const basePrice = propData[0]?.base_price || 10000000;
             const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
             const mockTrends = [];
-            
+
             for (let i = 5; i >= 0; i--) {
                 const date = new Date();
                 date.setMonth(date.getMonth() - i);
@@ -115,7 +135,7 @@ router.get('/price-trends', async (req, res) => {
             }
             return res.json(mockTrends);
         }
-        
+
         // Remove sort_key from response
         const cleanTrends = trends.map(t => ({ month: t.month, avg_price: t.avg_price }));
         res.json(cleanTrends);
@@ -125,7 +145,7 @@ router.get('/price-trends', async (req, res) => {
         const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
         const mockTrends = [];
         const basePrice = 10000000;
-        
+
         for (let i = 5; i >= 0; i--) {
             const date = new Date();
             date.setMonth(date.getMonth() - i);
@@ -141,13 +161,13 @@ router.get('/price-trends', async (req, res) => {
 // GET /api/dashboard/regional-distribution - Properties by region
 router.get('/regional-distribution', async (req, res) => {
     try {
-        const { city } = req.query;
         let whereClause = "WHERE r.name NOT LIKE 'Locality_%' AND r.name NOT REGEXP '^[0-9]'";
-        
-        if (city && city !== 'all') {
-            whereClause += ` AND p.city = '${city}'`;
+        const filters = buildFilterQuery(req.query, 'p.');
+
+        if (filters) {
+            whereClause += ` ${filters}`;
         }
-        
+
         const distribution = await query(`
             SELECT 
                 r.name as region,
@@ -161,7 +181,8 @@ router.get('/regional-distribution', async (req, res) => {
             ORDER BY count DESC
             LIMIT 10
         `);
-        
+
+        const { city } = req.query;
         // If no data, return sample data based on city
         if (distribution.length === 0) {
             if (city === 'Chennai' || city === 'all' || !city) {
@@ -188,7 +209,7 @@ router.get('/regional-distribution', async (req, res) => {
                 { region: 'OMR', count: 2 }
             ]);
         }
-        
+
         res.json(distribution);
     } catch (error) {
         console.error('Regional distribution error:', error);
@@ -199,14 +220,14 @@ router.get('/regional-distribution', async (req, res) => {
 // GET /api/dashboard/recent-transactions - Latest transactions
 router.get('/recent-transactions', async (req, res) => {
     try {
-        const { city } = req.query;
-        const cityFilter = city && city !== 'all' ? `AND p.city = '${city}'` : '';
-        
+        const filters = buildFilterQuery(req.query, 'p.');
+
         const transactions = await query(`
             SELECT 
                 t.id as transaction_id,
                 p.property_code as property_id,
                 p.city,
+                p.type,
                 t.status,
                 t.amount as value,
                 DATE_FORMAT(t.transaction_date, '%Y-%m-%d') as date,
@@ -217,20 +238,20 @@ router.get('/recent-transactions', async (req, res) => {
                 END as action
             FROM transactions t
             JOIN properties p ON t.property_id = p.id
-            WHERE 1=1 ${cityFilter}
+            WHERE 1=1 ${filters}
             ORDER BY t.created_at DESC
             LIMIT 10
         `);
-        
+
         // If no data, return sample
         if (transactions.length === 0) {
             return res.json([
-                { transaction_id: 1, property_id: 'CHN001', status: 'Completed', value: 15000000, date: '2024-04-15', action: 'View Receipt' },
-                { transaction_id: 2, property_id: 'CHN002', status: 'Pending', value: 22000000, date: '2024-04-10', action: 'Follow Up' },
-                { transaction_id: 3, property_id: 'SLM001', status: 'Completed', value: 4500000, date: '2024-04-05', action: 'View Receipt' }
+                { transaction_id: 1, property_id: 'CHN001', status: 'Completed', value: 15000000, date: '2024-04-15', action: 'View Receipt', type: 'Residential' },
+                { transaction_id: 2, property_id: 'CHN002', status: 'Pending', value: 22000000, date: '2024-04-10', action: 'Follow Up', type: 'Commercial' },
+                { transaction_id: 3, property_id: 'SLM001', status: 'Completed', value: 4500000, date: '2024-04-05', action: 'View Receipt', type: 'Land' }
             ]);
         }
-        
+
         res.json(transactions);
     } catch (error) {
         console.error('Transactions error:', error);
@@ -241,6 +262,7 @@ router.get('/recent-transactions', async (req, res) => {
 // GET /api/dashboard/city-stats - Stats by city
 router.get('/city-stats', async (req, res) => {
     try {
+        const filters = buildFilterQuery(req.query, '');
         const stats = await query(`
             SELECT 
                 city,
@@ -250,9 +272,10 @@ router.get('/city-stats', async (req, res) => {
                 SUM(CASE WHEN status = 'Active' THEN 1 ELSE 0 END) as active_count,
                 SUM(CASE WHEN status = 'Sold' THEN 1 ELSE 0 END) as sold_count
             FROM properties
+            WHERE 1=1 ${filters}
             GROUP BY city
         `);
-        
+
         res.json(stats);
     } catch (error) {
         console.error('City stats error:', error);
@@ -263,6 +286,9 @@ router.get('/city-stats', async (req, res) => {
 // GET /api/dashboard/summary - Full dashboard summary
 router.get('/summary', async (req, res) => {
     try {
+        const filters = buildFilterQuery(req.query, '');
+        const filterWhere = filters ? `WHERE 1=1 ${filters}` : '';
+
         const [metrics, cityStats, propertyTypes] = await Promise.all([
             query(`
                 SELECT 
@@ -273,17 +299,22 @@ router.get('/summary', async (req, res) => {
                     ROUND(AVG(price)) as avg_price,
                     ROUND(AVG(sqft)) as avg_sqft
                 FROM properties
+                ${filterWhere}
             `),
             query(`
                 SELECT city, COUNT(*) as count, ROUND(AVG(price)) as avg_price
-                FROM properties GROUP BY city
+                FROM properties
+                ${filterWhere}
+                GROUP BY city
             `),
             query(`
                 SELECT type, COUNT(*) as count
-                FROM properties GROUP BY type
+                FROM properties
+                ${filterWhere}
+                GROUP BY type
             `)
         ]);
-        
+
         res.json({
             overview: metrics[0],
             byCity: cityStats,

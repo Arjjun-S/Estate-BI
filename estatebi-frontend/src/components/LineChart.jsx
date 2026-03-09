@@ -9,19 +9,44 @@ const LineChart = ({ data }) => {
                     <RAreaChart data={data} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
                         <defs>
                             <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.8} />
-                                <stop offset="95%" stopColor="#f59e0b" stopOpacity={0} />
+                                <stop offset="5%" stopColor="var(--primary)" stopOpacity={0.3} />
+                                <stop offset="95%" stopColor="var(--primary)" stopOpacity={0} />
                             </linearGradient>
                         </defs>
-                        <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 12 }} />
-                        <YAxis axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 12 }} tickFormatter={(value) => `₹${(value / 1000000).toFixed(0)}M`} />
-                        <CartesianGrid vertical={false} stroke="#e2e8f0" strokeDasharray="3 3" />
+                        <XAxis
+                            dataKey="month"
+                            axisLine={false}
+                            tickLine={false}
+                            tick={{ fill: 'var(--text-secondary)', fontSize: 12 }}
+                            dy={10}
+                        />
+                        <YAxis
+                            axisLine={false}
+                            tickLine={false}
+                            tick={{ fill: 'var(--text-secondary)', fontSize: 12 }}
+                            tickFormatter={(value) => `₹${(value / 100000).toFixed(0)}L`}
+                        />
+                        <CartesianGrid vertical={false} stroke="var(--border-color)" strokeDasharray="3 3" />
                         <Tooltip
-                            contentStyle={{ background: '#fff', border: 'none', borderRadius: '8px', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
-                            itemStyle={{ color: '#1e293b' }}
+                            contentStyle={{
+                                background: 'var(--card-bg)',
+                                border: '1px solid var(--border-color)',
+                                borderRadius: '12px',
+                                boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)',
+                                color: 'var(--text-main)'
+                            }}
+                            itemStyle={{ color: 'var(--primary)' }}
                             formatter={(value) => [`₹${Number(value).toLocaleString()}`, 'Avg Price']}
                         />
-                        <Area type="monotone" dataKey="avg_price" stroke="#f59e0b" strokeWidth={3} fillOpacity={1} fill="url(#colorValue)" />
+                        <Area
+                            type="monotone"
+                            dataKey="avg_price"
+                            stroke="var(--primary)"
+                            strokeWidth={3}
+                            fillOpacity={1}
+                            fill="url(#colorValue)"
+                            animationDuration={1500}
+                        />
                     </RAreaChart>
                 </ResponsiveContainer>
             ) : (

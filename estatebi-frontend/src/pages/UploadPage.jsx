@@ -31,7 +31,7 @@ const UploadPage = () => {
         e.preventDefault();
         e.stopPropagation();
         setDragActive(false);
-        
+
         if (e.dataTransfer.files && e.dataTransfer.files[0]) {
             handleFile(e.dataTransfer.files[0]);
         }
@@ -44,10 +44,9 @@ const UploadPage = () => {
     };
 
     const handleFile = async (file) => {
-        const allowedTypes = ['text/csv', 'application/json'];
         const allowedExtensions = ['.csv', '.json'];
         const ext = file.name.toLowerCase().slice(file.name.lastIndexOf('.'));
-        
+
         if (!allowedExtensions.includes(ext)) {
             setUploadResult({ success: false, message: 'Only CSV and JSON files are allowed' });
             return;
@@ -84,14 +83,14 @@ const UploadPage = () => {
                 Import new housing datasets (CSV, JSON) to synchronize with the database.
             </p>
 
-            <div 
-                className="card" 
-                style={{ 
-                    padding: '3rem', 
-                    border: dragActive ? '2px solid var(--primary)' : '2px dashed var(--border-color)', 
-                    display: 'flex', 
-                    flexDirection: 'column', 
-                    alignItems: 'center', 
+            <div
+                className="card"
+                style={{
+                    padding: '3rem',
+                    border: dragActive ? '2px solid var(--primary)' : '2px dashed var(--border-color)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
                     background: dragActive ? '#fef3c7' : '#f8fafc',
                     transition: 'all 0.2s'
                 }}
@@ -114,15 +113,15 @@ const UploadPage = () => {
                     accept=".csv,.json"
                     style={{ display: 'none' }}
                 />
-                <button 
-                    className="btn btn-primary" 
+                <button
+                    className="btn btn-primary"
                     onClick={() => fileInputRef.current?.click()}
                     disabled={uploading}
                 >
                     {uploading ? 'Processing...' : 'Browse Files'}
                 </button>
-                <a 
-                    href="http://localhost:5000/api/upload/template" 
+                <a
+                    href="http://localhost:5001/api/upload/template"
                     style={{ marginTop: '1rem', color: 'var(--primary)', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '0.3rem' }}
                 >
                     <Download size={14} /> Download CSV Template
@@ -130,15 +129,15 @@ const UploadPage = () => {
             </div>
 
             {uploadResult && (
-                <div 
-                    className="card" 
-                    style={{ 
-                        marginTop: '1rem', 
-                        background: uploadResult.success ? '#f0fdf4' : '#fef2f2', 
+                <div
+                    className="card"
+                    style={{
+                        marginTop: '1rem',
+                        background: uploadResult.success ? '#f0fdf4' : '#fef2f2',
                         border: `1px solid ${uploadResult.success ? '#bbf7d0' : '#fecaca'}`,
-                        display: 'flex', 
-                        alignItems: 'center', 
-                        gap: '1rem' 
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '1rem'
                     }}
                 >
                     {uploadResult.success ? (

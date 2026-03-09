@@ -19,7 +19,7 @@ const ProtectedRoute = ({ children }) => {
   return children;
 };
 
-const Layout = ({ children }) => {
+const Layout = ({ children, onGlobalFilter, globalFilters }) => {
   const location = useLocation();
   const isLogin = location.pathname === '/login' || location.pathname === '/';
 
@@ -31,7 +31,7 @@ const Layout = ({ children }) => {
     <div className="app-container">
       <Sidebar />
       <div className="main-content">
-        <Header />
+        <Header onGlobalFilter={onGlobalFilter} globalFilters={globalFilters} />
         {children}
       </div>
     </div>
@@ -39,13 +39,29 @@ const Layout = ({ children }) => {
 };
 
 const App = () => {
+  const [globalFilters, setGlobalFilters] = useState({
+    city: 'all',
+    type: 'all',
+    status: 'all',
+    minPrice: '',
+    maxPrice: ''
+  });
+
+  const handleGlobalFilter = (newFilters) => {
+    setGlobalFilters(prev => ({ ...prev, ...newFilters }));
+  };
+
   return (
     <BrowserRouter>
-      <Layout>
+      <Layout onGlobalFilter={handleGlobalFilter} globalFilters={globalFilters}>
         <Routes>
           <Route path="/login" element={<LoginPage />} />
           <Route path="/" element={<Navigate to="/login" replace />} />
-          <Route path="/dashboard" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
+          <Route path="/dashboard" element={
+            <ProtectedRoute>
+              <DashboardPage globalFilters={globalFilters} onGlobalFilter={handleGlobalFilter} />
+            </ProtectedRoute>
+          } />
           <Route path="/upload" element={<ProtectedRoute><UploadPage /></ProtectedRoute>} />
           <Route path="/reports" element={<ProtectedRoute><ReportsPage /></ProtectedRoute>} />
           <Route path="/logs" element={<ProtectedRoute><LogsPage /></ProtectedRoute>} />

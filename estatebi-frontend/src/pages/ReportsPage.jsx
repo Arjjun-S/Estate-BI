@@ -48,7 +48,52 @@ const ReportsPage = () => {
         completed: transactions.filter(t => t.status === 'Completed').length,
         pending: transactions.filter(t => t.status === 'Pending').length,
         cancelled: transactions.filter(t => t.status === 'Cancelled').length,
-        totalValue: transactions.reduce((sum, t) => sum + (t.value || 0), 0)
+        totalValue: transactions.reduce((sum, t) => {
+            const val = parseFloat(String(t.value || 0).replace(/[^0-9.]/g, '')) || 0;
+            return sum + val;
+        }, 0)
+    };
+
+    const handleExportCSV = () => {
+        let csvContent = "";
+
+        // 1. Summary Metrics
+        csvContent += "SUMMARY METRICS\n";
+        csvContent += "Total Properties,Total Value (Cr),Avg Price/sqft\n";
+        csvContent += `${metrics.total_inventory || 20},${(transactionStats.totalValue / 10000000).toFixed(1)},${Math.round((metrics.avg_price || 12000000) / 1500)}\n\n`;
+
+        // 2. City-wise Distribution
+        csvContent += "CITY-WISE DISTRIBUTION\n";
+        csvContent += "City,Property Count,Total Value (INR)\n";
+        cityStats.forEach(city => {
+            csvContent += `"${city.city}",${city.count},${city.total_value}\n`;
+        });
+        csvContent += "\n";
+
+        // 3. Regional Distribution
+        csvContent += "REGIONAL DISTRIBUTION\n";
+        csvContent += "Region,Property Count\n";
+        regionData.forEach(region => {
+            csvContent += `"${region.region}",${region.count}\n`;
+        });
+        csvContent += "\n";
+
+        // 4. Detailed Transactions
+        csvContent += "RECENT TRANSACTIONS\n";
+        csvContent += "ID,Status,Value (INR),Date\n";
+        transactions.forEach(t => {
+            csvContent += `${t.transaction_id || t.property_id},${t.status},${t.value || 0},"${t.date}"\n`;
+        });
+
+        // Trigger Download
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.setAttribute("href", url);
+        link.setAttribute("download", `EstateBI_Report_${new Date().toISOString().split('T')[0]}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
     };
 
     const pieData = [
@@ -56,13 +101,6 @@ const ReportsPage = () => {
         { name: 'Pending', value: transactionStats.pending },
         { name: 'Cancelled', value: transactionStats.cancelled }
     ].filter(d => d.value > 0);
-
-    // Property type distribution from region data
-    const propertyTypeData = [
-        { name: 'Residential', value: 12, color: '#f59e0b' },
-        { name: 'Commercial', value: 5, color: '#10b981' },
-        { name: 'Land', value: 3, color: '#3b82f6' }
-    ];
 
     if (loading) {
         return (
@@ -80,8 +118,8 @@ const ReportsPage = () => {
                     <p style={{ color: 'var(--text-secondary)' }}>Comprehensive analysis of Chennai & Salem real estate data</p>
                 </div>
                 <div style={{ display: 'flex', gap: '0.75rem' }}>
-                    <select 
-                        value={dateRange} 
+                    <select
+                        value={dateRange}
                         onChange={(e) => setDateRange(e.target.value)}
                         style={{ padding: '0.5rem 1rem', borderRadius: '0.5rem', border: '1px solid var(--border-color)', background: 'white' }}
                     >
@@ -90,7 +128,12 @@ const ReportsPage = () => {
                         <option value="quarter">This Quarter</option>
                         <option value="month">This Month</option>
                     </select>
-                    <button className="btn btn-primary"><Download size={16} /> Export Report</button>
+                    <button
+                        className="btn btn-primary"
+                        onClick={handleExportCSV}
+                    >
+                        <Download size={16} /> Export Report
+                    </button>
                 </div>
             </div>
 
@@ -150,7 +193,7 @@ const ReportsPage = () => {
                         <LineChart data={priceData}>
                             <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
                             <XAxis dataKey="month" stroke="#64748b" fontSize={12} />
-                            <YAxis stroke="#64748b" fontSize={12} tickFormatter={(v) => `₹${(v/1000000).toFixed(0)}M`} />
+                            <YAxis stroke="#64748b" fontSize={12} tickFormatter={(v) => `₹${(v / 1000000).toFixed(0)}M`} />
                             <Tooltip formatter={(v) => [`₹${v.toLocaleString()}`, 'Avg Price']} />
                             <Line type="monotone" dataKey="avg_price" stroke="#f59e0b" strokeWidth={3} dot={{ fill: '#f59e0b', r: 5 }} />
                         </LineChart>
@@ -217,7 +260,7 @@ const ReportsPage = () => {
                         </BarChart>
                     </ResponsiveContainer>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginTop: '1rem' }}>
-                        {cityStats.map((city, i) => (
+                        {cityStats.map((city) => (
                             <div key={city.city} style={{ padding: '1rem', background: 'var(--bg-color)', borderRadius: '0.5rem' }}>
                                 <p style={{ fontWeight: 600, marginBottom: '0.25rem' }}>{city.city}</p>
                                 <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
@@ -246,18 +289,17 @@ const ReportsPage = () => {
                             </tr>
                         </thead>
                         <tbody>
-                            {transactions.slice(0, 10).map((t, i) => (
-                                <tr key={i}>
+                            {transactions.slice(0, 10).map((t) => (
+                                <tr key={t.transaction_id || t.property_id}>
                                     <td style={{ fontWeight: 600 }}>{t.property_id}</td>
                                     <td>
-                                        <span className={`status-badge ${
-                                            t.status === 'Completed' ? 'status-success' :
+                                        <span className={`status-badge ${t.status === 'Completed' ? 'status-success' :
                                             t.status === 'Pending' ? 'status-pending' : 'status-error'
-                                        }`}>
+                                            }`}>
                                             {t.status}
                                         </span>
                                     </td>
-                                    <td style={{ fontWeight: 600 }}>₹{(t.value || 0).toLocaleString()}</td>
+                                    <td style={{ fontWeight: 600 }}>₹{(Number(parseFloat(String(t.value || 0).replace(/[^0-9.]/g, '')) || 0)).toLocaleString()}</td>
                                     <td style={{ color: 'var(--text-secondary)' }}>{t.date}</td>
                                 </tr>
                             ))}

@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 // Backend API URL (Node.js server)
-const API_BASE_URL = 'http://localhost:5000/api';
+const API_BASE_URL = 'http://localhost:5001/api';
 
 const api = axios.create({
     baseURL: API_BASE_URL,
@@ -41,12 +41,12 @@ export const getMe = () => api.get('/auth/me');
 
 // Dashboard endpoints
 export const getCities = () => api.get('/dashboard/cities');
-export const getDashboardMetrics = (city) => api.get('/dashboard/metrics', { params: { city } });
-export const getPriceTrends = (city) => api.get('/dashboard/price-trends', { params: { city } });
-export const getRegionalDistribution = (city) => api.get('/dashboard/regional-distribution', { params: { city } });
-export const getRecentTransactions = (city) => api.get('/dashboard/recent-transactions', { params: { city } });
-export const getCityStats = () => api.get('/dashboard/city-stats');
-export const getDashboardSummary = () => api.get('/dashboard/summary');
+export const getDashboardMetrics = (filters) => api.get('/dashboard/metrics', { params: filters });
+export const getPriceTrends = (filters) => api.get('/dashboard/price-trends', { params: filters });
+export const getRegionalDistribution = (filters) => api.get('/dashboard/regional-distribution', { params: filters });
+export const getRecentTransactions = (filters) => api.get('/dashboard/recent-transactions', { params: filters });
+export const getCityStats = (filters) => api.get('/dashboard/city-stats', { params: filters });
+export const getDashboardSummary = (filters) => api.get('/dashboard/summary', { params: filters });
 
 // Upload endpoints
 export const uploadFile = (formData) => api.post('/upload/', formData, {

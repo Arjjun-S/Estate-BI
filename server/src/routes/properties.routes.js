@@ -8,7 +8,7 @@ const router = express.Router();
 router.get('/', async (req, res) => {
     try {
         const { city, type, status, region_id, limit = 50, offset = 0, search } = req.query;
-        
+
         let sql = `
             SELECT 
                 p.*,
@@ -17,39 +17,39 @@ router.get('/', async (req, res) => {
             FROM properties p
             LEFT JOIN regions r ON p.region_id = r.id
         `;
-        
+
         const params = [];
         const conditions = [];
-        
+
         if (city) {
             conditions.push('p.city = ?');
             params.push(city);
         }
-        
+
         if (type) {
             conditions.push('p.type = ?');
             params.push(type);
         }
-        
+
         if (status) {
             conditions.push('p.status = ?');
             params.push(status);
         }
-        
+
         if (region_id) {
             conditions.push('p.region_id = ?');
             params.push(region_id);
         }
-        
+
         if (conditions.length > 0) {
             sql += ' WHERE ' + conditions.join(' AND ');
         }
-        
+
         sql += ' ORDER BY p.created_at DESC LIMIT ? OFFSET ?';
         params.push(parseInt(limit), parseInt(offset));
-        
+
         const properties = await query(sql, params);
-        
+
         res.json(properties);
     } catch (error) {
         console.error('List properties error:', error);
@@ -61,7 +61,7 @@ router.get('/', async (req, res) => {
 router.get('/:id', async (req, res) => {
     try {
         const { id } = req.params;
-        
+
         const properties = await query(`
             SELECT 
                 p.*,
@@ -72,16 +72,16 @@ router.get('/:id', async (req, res) => {
             LEFT JOIN regions r ON p.region_id = r.id
             WHERE p.id = ?
         `, [id]);
-        
+
         if (properties.length === 0) {
             return res.status(404).json({ error: 'Property not found' });
         }
-        
+
         // Get transactions for this property
         const transactions = await query(`
             SELECT * FROM transactions WHERE property_id = ? ORDER BY transaction_date DESC
         `, [id]);
-        
+
         res.json({
             ...properties[0],
             transactions
@@ -99,11 +99,11 @@ router.post('/', async (req, res) => {
             property_code, address, city, region_id, type, status,
             price, sqft, bedrooms, bathrooms, year_built, description
         } = req.body;
-        
+
         if (!city || !price) {
             return res.status(400).json({ error: 'City and price are required' });
         }
-        
+
         const result = await query(`
             INSERT INTO properties 
             (property_code, address, city, region_id, type, status, price, sqft, bedrooms, bathrooms, year_built, description)
@@ -122,7 +122,7 @@ router.post('/', async (req, res) => {
             year_built,
             description
         ]);
-        
+
         res.status(201).json({
             message: 'Property created successfully',
             id: result.insertId
@@ -138,30 +138,30 @@ router.put('/:id', async (req, res) => {
     try {
         const { id } = req.params;
         const updates = req.body;
-        
+
         // Build dynamic update query
         const fields = ['address', 'city', 'region_id', 'type', 'status', 'price', 'sqft', 'bedrooms', 'bathrooms', 'year_built', 'description'];
         const setClauses = [];
         const params = [];
-        
+
         for (const field of fields) {
             if (updates[field] !== undefined) {
                 setClauses.push(`${field} = ?`);
                 params.push(updates[field]);
             }
         }
-        
+
         if (setClauses.length === 0) {
             return res.status(400).json({ error: 'No valid fields to update' });
         }
-        
+
         params.push(id);
-        
+
         await query(
             `UPDATE properties SET ${setClauses.join(', ')}, updated_at = NOW() WHERE id = ?`,
             params
         );
-        
+
         res.json({ message: 'Property updated successfully' });
     } catch (error) {
         console.error('Update property error:', error);
@@ -173,9 +173,9 @@ router.put('/:id', async (req, res) => {
 router.delete('/:id', async (req, res) => {
     try {
         const { id } = req.params;
-        
+
         await query('DELETE FROM properties WHERE id = ?', [id]);
-        
+
         res.json({ message: 'Property deleted successfully' });
     } catch (error) {
         console.error('Delete property error:', error);
@@ -183,23 +183,42 @@ router.delete('/:id', async (req, res) => {
     }
 });
 
-// GET /api/properties/search/:term - Search properties
+// GET /api/properties/search/:term - Search properties and cities
 router.get('/search/:term', async (req, res) => {
     try {
         const { term } = req.params;
-        
+
+        // Search properties
         const properties = await query(`
-            SELECT p.*, r.name as region_name
+            SELECT p.*, r.name as region_name, 'property' as result_type
             FROM properties p
             LEFT JOIN regions r ON p.region_id = r.id
             WHERE p.property_code LIKE ? 
                OR p.address LIKE ?
                OR p.city LIKE ?
-               OR p.description LIKE ?
-            LIMIT 20
-        `, [`%${term}%`, `%${term}%`, `%${term}%`, `%${term}%`]);
-        
-        res.json(properties);
+            LIMIT 15
+        `, [`%${term}%`, `%${term}%`, `%${term}%`]);
+
+        // Search cities with aggregate stats
+        const cities = await query(`
+            SELECT 
+                city as name,
+                'city' as result_type,
+                COUNT(*) as property_count,
+                ROUND(AVG(price)) as avg_price,
+                SUM(price) as total_value,
+                SUM(CASE WHEN status = 'Active' THEN 1 ELSE 0 END) as active_count,
+                SUM(CASE WHEN status = 'Sold' THEN 1 ELSE 0 END) as sold_count
+            FROM properties
+            WHERE city LIKE ?
+            GROUP BY city
+            LIMIT 5
+        `, [`%${term}%`]);
+
+        res.json({
+            properties,
+            cities
+        });
     } catch (error) {
         console.error('Search error:', error);
         res.status(500).json({ error: 'Search failed' });

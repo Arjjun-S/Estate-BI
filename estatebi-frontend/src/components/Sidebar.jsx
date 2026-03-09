@@ -6,12 +6,12 @@ import '../index.css';
 
 const Sidebar = () => {
     const navigate = useNavigate();
-    
+
     const handleLogout = () => {
         logout();
         navigate('/login');
     };
-    
+
     return (
         <aside className="sidebar">
             <div style={{ marginBottom: '2rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
@@ -32,14 +32,12 @@ const Sidebar = () => {
                 <NavLink to="/logs" className={({ isActive }) => `btn btn-outline ${isActive ? 'active-nav' : ''}`} style={{ border: 'none', justifyContent: 'flex-start', background: 'transparent' }}>
                     <ScrollText size={20} /> System Logs
                 </NavLink>
-                <NavLink to="/profile" className={({ isActive }) => `btn btn-outline ${isActive ? 'active-nav' : ''}`} style={{ border: 'none', justifyContent: 'flex-start', background: 'transparent' }}>
-                    <User size={20} /> Profile
-                </NavLink>
+
             </nav>
 
             <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '1rem' }}>
-                <button 
-                    className="btn btn-outline" 
+                <button
+                    className="btn btn-outline"
                     style={{ width: '100%', border: 'none', color: 'var(--danger)', justifyContent: 'flex-start' }}
                     onClick={handleLogout}
                 >
