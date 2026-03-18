@@ -2,14 +2,14 @@
 
 A production-ready Housing BI platform for analyzing Chennai and Salem real estate data.
 
-## 🏗️ Tech Stack
+## Tech Stack
 
 - **Frontend**: React + Vite + Tailwind CSS + Recharts
 - **Backend**: Node.js + Express
 - **Database**: MySQL
 - **Authentication**: JWT + bcrypt
 
-## 📁 Project Structure
+## Project Structure
 
 ```
 estatebi/
@@ -37,7 +37,7 @@ estatebi/
     └── processed/          # Processed files
 ```
 
-## 🚀 Quick Start
+## Quick Start
 
 ### Prerequisites
 - Node.js 18+
@@ -85,14 +85,14 @@ npm run dev
 ```
 Frontend runs on http://localhost:5173
 
-## 🔐 Default Credentials
+## Default Credentials
 
 | Email | Password | Role |
 |-------|----------|------|
 | admin@estatebi.com | admin123 | Admin |
 | arjun@estatebi.com | admin123 | Analyst |
 
-## 📊 Features
+## Features
 
 - **Dashboard**: Real-time analytics with inventory, pricing trends, and regional distribution
 - **Data Upload**: CSV/JSON file upload with preprocessing and validation
@@ -100,7 +100,13 @@ Frontend runs on http://localhost:5173
 - **System Logs**: Activity tracking and audit trail
 - **Settings**: User profile management
 
-## 🗄️ Database Tables
+## Data Layers
+
+- **Bronze Layer (Raw Data)** – This is where the app stores raw data exactly as uploaded (e.g. a CSV of property listings). No changes are made yet. It's useful for backup, traceability, and audit.
+- **Silver Layer (Clean & Structured Data)** – This is your main working database. It stores organized tables like Properties, Agents, Clients, Sales, etc. This is where your app runs daily operations (add/edit properties, agents, clients, etc.).
+- **Gold Layer (Analytics/Reports)** – This layer holds summary data (e.g. average property price per city, total sales by agent). It is used for dashboards and charts in your frontend.
+
+## Database Tables
 
 | Table | Description |
 |-------|-------------|
@@ -136,7 +142,7 @@ Frontend runs on http://localhost:5173
 - `GET /api/upload/history` - Upload history
 - `GET /api/upload/template` - Download CSV template
 
-## 🌐 Remote Database Configuration
+## Remote Database Configuration
 
 Update `server/.env` with your remote database credentials:
 
@@ -148,7 +154,7 @@ DB_PASSWORD=your_password
 DB_NAME=estatebi
 ```
 
-## 📝 Data Preprocessing Rules
+## Data Preprocessing Rules
 
 The ETL pipeline applies these rules:
 1. Missing price → Fill with city median
@@ -157,6 +163,6 @@ The ETL pipeline applies these rules:
 4. Normalize enums (case-insensitive)
 5. Remove duplicates by property_code
 
-## 📜 License
+## License
 
 MIT License - Arjun S
